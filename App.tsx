@@ -5,7 +5,11 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Programmes from './pages/Programmes';
 import StressAssessment from './pages/StressAssessment';
+import Members from './pages/Members';
+import Profile from './pages/Profile';
 import Layout from './components/Layout';
+
+type Page = 'dashboard' | 'programmes' | 'stress' | 'members' | 'profile';
 
 const App: React.FC = () => {
   const [auth, setAuth] = useState<AuthState>({
@@ -14,7 +18,7 @@ const App: React.FC = () => {
     isAuthenticated: false,
   });
 
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'programmes' | 'stress'>('dashboard');
+  const [currentPage, setCurrentPage] = useState<Page>('dashboard');
 
   // Session recovery simulation
   useEffect(() => {
@@ -33,6 +37,7 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setAuth({ user: null, organisation: null, isAuthenticated: false });
     localStorage.removeItem('whanauwell_auth');
+    setCurrentPage('dashboard');
   };
 
   if (!auth.isAuthenticated) {
@@ -42,13 +47,17 @@ const App: React.FC = () => {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard user={auth.user!} />;
+        return <Dashboard user={auth.user!} onNavigate={setCurrentPage} />;
       case 'programmes':
         return <Programmes user={auth.user!} />;
       case 'stress':
         return <StressAssessment user={auth.user!} />;
+      case 'members':
+        return <Members user={auth.user!} />;
+      case 'profile':
+        return <Profile user={auth.user!} organisation={auth.organisation!} />;
       default:
-        return <Dashboard user={auth.user!} />;
+        return <Dashboard user={auth.user!} onNavigate={setCurrentPage} />;
     }
   };
 

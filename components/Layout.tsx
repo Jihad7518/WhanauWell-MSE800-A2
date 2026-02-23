@@ -60,7 +60,10 @@ const Layout: React.FC<LayoutProps> = ({ children, user, organisation, onLogout,
         </nav>
 
         <div className="p-4 border-t border-indigo-800">
-          <div className="flex items-center space-x-3 mb-4 px-2">
+          <button 
+            onClick={() => onNavigate('profile')}
+            className="w-full flex items-center space-x-3 mb-4 px-2 hover:bg-indigo-800 p-2 rounded-lg transition-colors text-left"
+          >
             <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-sm">
               {user.name.charAt(0)}
             </div>
@@ -68,7 +71,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, organisation, onLogout,
               <p className="text-sm font-medium truncate">{user.name}</p>
               <p className="text-xs text-indigo-300 truncate">{user.role.replace('_', ' ')}</p>
             </div>
-          </div>
+          </button>
           <button 
             onClick={onLogout}
             className="w-full flex items-center space-x-3 px-4 py-2 text-indigo-200 hover:text-white hover:bg-red-600/20 rounded-lg transition-colors"
@@ -85,7 +88,10 @@ const Layout: React.FC<LayoutProps> = ({ children, user, organisation, onLogout,
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10">
           <h2 className="text-lg font-semibold text-slate-800 capitalize">{currentPage}</h2>
           <div className="flex items-center space-x-4">
-            <button className="p-2 text-slate-400 hover:text-indigo-600 transition-colors">
+            <button 
+              onClick={() => onNavigate('profile')}
+              className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"
+            >
               <Settings className="w-5 h-5" />
             </button>
           </div>

@@ -13,9 +13,10 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 interface DashboardProps {
   user: User;
+  onNavigate: (page: any) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate }) => {
   const isManagement = user.role === UserRole.ORG_ADMIN || user.role === UserRole.COORDINATOR;
 
   const mockStats = [
@@ -48,7 +49,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           <p className="text-slate-500">Welcome back to the wellbeing hub.</p>
         </div>
         {!isManagement && (
-          <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-100 transition-all flex items-center space-x-2">
+          <button 
+            onClick={() => onNavigate('stress')}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-100 transition-all flex items-center space-x-2"
+          >
             <Activity className="w-5 h-5" />
             <span>Daily Stress Check</span>
           </button>
