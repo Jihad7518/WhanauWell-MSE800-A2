@@ -50,7 +50,7 @@ const App: React.FC = () => {
     localStorage.setItem('whanauwell_auth', JSON.stringify(newState));
   };
 
-  if (!auth.isAuthenticated) {
+  if (!auth.isAuthenticated || !auth.user) {
     return <Login onLogin={handleLogin} />;
   }
 

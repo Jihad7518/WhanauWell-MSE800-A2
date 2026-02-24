@@ -244,6 +244,16 @@ async function startServer() {
     }
   });
 
+  // Members Routes
+  app.get("/api/members", authMiddleware, tenantMiddleware, roleMiddleware(['ORG_ADMIN', 'COORDINATOR']), async (req: any, res) => {
+    try {
+      const members = await User.find({ organisationId: req.tenantId }).select('-passwordHash');
+      res.json({ success: true, data: members });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
   // Dashboard Stats
   app.get("/api/dashboard/stats", authMiddleware, tenantMiddleware, async (req: any, res) => {
     try {
