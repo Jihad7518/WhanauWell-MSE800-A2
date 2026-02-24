@@ -1,31 +1,56 @@
 
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
-import { ShieldCheck, ChevronRight } from 'lucide-react';
+import { ShieldCheck, ChevronRight, UserPlus, LogIn } from 'lucide-react';
 
 interface LoginProps {
-  onLogin: (user: User, organisation: any) => void;
+  onLogin: (user: User, organisation: any, token?: string) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
+  const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [orgCode, setOrgCode] = useState('');
-  const [role, setRole] = useState<UserRole>(UserRole.MEMBER);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
     
-    // Mock authentication logic
-    const mockOrg = { id: 'org_123', name: 'Waitaha Health Trust', code: orgCode || 'WHANAU-01' };
-    const mockUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: email.split('@')[0].toUpperCase(),
-      email,
-      role,
-      organisationId: mockOrg.id
-    };
-    
-    onLogin(mockUser, mockOrg);
+    const endpoint = isRegistering ? '/api/auth/register' : '/api/auth/login';
+    const payload = isRegistering 
+      ? { name, email, password, orgCode }
+      : { email, password, orgCode };
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        if (isRegistering) {
+          setIsRegistering(false);
+          setError('Registration successful! Please login.');
+        } else {
+          onLogin(data.user, data.organisation, data.token);
+        }
+      } else {
+        setError(data.message || 'Authentication failed');
+      }
+    } catch (error) {
+      console.error('Auth error:', error);
+      setError('Connection error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -39,7 +64,27 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <p className="mt-2 text-indigo-100">Community Wellbeing & Stress Insight Platform</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="p-8 space-y-4">
+          {error && (
+            <div className={`p-3 rounded-lg text-sm font-medium ${error.includes('successful') ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+              {error}
+            </div>
+          )}
+
+          {isRegistering && (
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Full Name</label>
+              <input
+                type="text"
+                required
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                placeholder="John Doe"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1">Email Address</label>
             <input
@@ -53,7 +98,19 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Organisation Code</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Password</label>
+            <input
+              type="password"
+              required
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Organisation Invite Code</label>
             <input
               type="text"
               required
@@ -64,28 +121,39 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Select Role (Demo Mode)</label>
-            <select
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-              value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-            >
-              <option value={UserRole.MEMBER}>Member (Self-Check)</option>
-              <option value={UserRole.COORDINATOR}>Coordinator (Programs)</option>
-              <option value={UserRole.ORG_ADMIN}>Organisation Admin (Analytics)</option>
-            </select>
-          </div>
-
           <button
             type="submit"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl flex items-center justify-center space-x-2 transition-colors shadow-lg shadow-indigo-200"
+            disabled={loading}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold py-3 rounded-xl flex items-center justify-center space-x-2 transition-colors shadow-lg shadow-indigo-200"
           >
-            <span>Continue to Dashboard</span>
-            <ChevronRight className="w-5 h-5" />
+            {loading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <>
+                <span>{isRegistering ? 'Create Account' : 'Continue to Dashboard'}</span>
+                <ChevronRight className="w-5 h-5" />
+              </>
+            )}
           </button>
           
-          <p className="text-center text-xs text-slate-400 uppercase tracking-widest font-semibold pt-4">
+          <div className="pt-4 text-center">
+            <button 
+              type="button"
+              onClick={() => {
+                setIsRegistering(!isRegistering);
+                setError('');
+              }}
+              className="text-indigo-600 hover:text-indigo-800 text-sm font-bold flex items-center justify-center mx-auto space-x-1"
+            >
+              {isRegistering ? (
+                <><LogIn className="w-4 h-4" /> <span>Already have an account? Login</span></>
+              ) : (
+                <><UserPlus className="w-4 h-4" /> <span>Need an account? Register with invite code</span></>
+              )}
+            </button>
+          </div>
+
+          <p className="text-center text-[10px] text-slate-400 uppercase tracking-widest font-semibold pt-4">
             Enterprise Grade Isolation • Data Sovereignty
           </p>
         </form>

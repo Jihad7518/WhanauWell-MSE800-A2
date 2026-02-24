@@ -1,123 +1,154 @@
 
-import React, { useState } from 'react';
-import { User } from '../types';
-import { 
-  Moon, 
-  Briefcase, 
-  Smile, 
-  ShieldCheck, 
-  Info,
-  CheckCircle2
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { StressQuestion, StressResult } from '../types';
+import { BrainCircuit, ChevronRight, ChevronLeft, CheckCircle2, AlertCircle, Info, ShieldCheck } from 'lucide-react';
 
-interface StressAssessmentProps {
-  user: User;
-}
+const StressAssessment: React.FC = () => {
+  const [questions, setQuestions] = useState<StressQuestion[]>([]);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [responses, setResponses] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<StressResult | null>(null);
+  const [consent, setConsent] = useState(false);
+  const [error, setError] = useState('');
 
-const StressAssessment: React.FC<StressAssessmentProps> = ({ user }) => {
-  const [formData, setFormData] = useState({
-    sleep: 5,
-    workload: 5,
-    mood: 5,
-    consent: false
-  });
-  const [result, setResult] = useState<any>(null);
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      try {
+        const response = await fetch('/api/stress/questions');
+        const data = await response.json();
+        if (data.success) {
+          setQuestions(data.data);
+        }
+      } catch (err) {
+        console.error('Fetch questions error:', err);
+        setError('Failed to load assessment questions.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchQuestions();
+  }, []);
 
-  const calculateStress = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.consent) {
-      alert("You must provide consent for your wellbeing data to be processed.");
+  const handleOptionSelect = (questionId: string, value: number) => {
+    setResponses({ ...responses, [questionId]: value });
+    if (currentStep < questions.length - 1) {
+      setTimeout(() => setCurrentStep(currentStep + 1), 300);
+    }
+  };
+
+  const calculateStress = async () => {
+    if (!consent) {
+      setError('Please provide consent to save your assessment.');
       return;
     }
-
-    // Business Logic (In actual app, this would be a call to StressService)
-    const score = (10 - formData.sleep) + formData.workload + formData.mood;
-    let classification: 'Low' | 'Moderate' | 'High' = 'Low';
     
-    if (score > 10) classification = 'High';
-    else if (score > 5) classification = 'Moderate';
-
-    const mockResult = {
-      score,
-      classification,
-      timestamp: new Date().toLocaleDateString(),
-      advice: getAdvice(classification)
-    };
-
-    setResult(mockResult);
-  };
-
-  const getAdvice = (level: string) => {
-    switch (level) {
-      case 'Low': return 'You seem to be managing well. Keep maintaining your healthy routines!';
-      case 'Moderate': return 'Your stress levels are elevated. Consider taking a short break or engaging in a social activity.';
-      case 'High': return 'You are reporting high stress. We strongly recommend reaching out to your programme coordinator or a health professional.';
-      default: return '';
+    setSubmitting(true);
+    setError('');
+    
+    try {
+      const response = await fetch('/api/stress/assess', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
+        },
+        body: JSON.stringify({ responses, consentGiven: consent })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setResult(data.data);
+      } else {
+        setError(data.message || 'Failed to calculate stress level.');
+      }
+    } catch (err) {
+      console.error('Assessment error:', err);
+      setError('Connection error. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const Slider = ({ label, value, icon: Icon, field, description }: any) => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
-            <Icon className="w-5 h-5" />
-          </div>
-          <div>
-            <h4 className="font-semibold text-slate-800">{label}</h4>
-            <p className="text-xs text-slate-500">{description}</p>
-          </div>
-        </div>
-        <span className="text-2xl font-bold text-indigo-600">{value}</span>
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-500 font-medium">Loading assessment...</p>
       </div>
-      <input
-        type="range"
-        min="1"
-        max="10"
-        value={value}
-        onChange={(e) => setFormData({ ...formData, [field]: parseInt(e.target.value) })}
-        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-      />
-      <div className="flex justify-between text-xs text-slate-400 font-medium uppercase tracking-wider">
-        <span>Lower</span>
-        <span>Higher</span>
-      </div>
-    </div>
-  );
+    );
+  }
 
   if (result) {
+    const getLevelColor = (level: string) => {
+      switch (level) {
+        case 'Low': return 'text-emerald-600 bg-emerald-50 border-emerald-100';
+        case 'Moderate': return 'text-amber-600 bg-amber-50 border-amber-100';
+        case 'High': return 'text-rose-600 bg-rose-50 border-rose-100';
+        default: return 'text-slate-600 bg-slate-50 border-slate-100';
+      }
+    };
+
     return (
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-500">
-          <div className={`p-8 text-white text-center ${
-            result.classification === 'High' ? 'bg-rose-500' : 
-            result.classification === 'Moderate' ? 'bg-amber-500' : 'bg-emerald-500'
-          }`}>
-            <CheckCircle2 className="w-16 h-16 mx-auto mb-4 opacity-90" />
-            <h2 className="text-3xl font-bold">Assessment Complete</h2>
-            <p className="opacity-80 mt-1">{result.timestamp}</p>
+      <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="bg-white rounded-3xl p-8 shadow-xl border border-slate-100 overflow-hidden relative">
+          <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600"></div>
+          
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-indigo-50 rounded-full mb-6">
+              <BrainCircuit className="w-10 h-10 text-indigo-600" />
+            </div>
+            <h1 className="text-3xl font-bold text-slate-900">Your Wellbeing Insight</h1>
+            <p className="text-slate-500 mt-2">Based on your recent experiences</p>
           </div>
-          <div className="p-8 text-center space-y-6">
-            <div>
-              <p className="text-slate-500 uppercase tracking-widest font-bold text-xs mb-1">Your Stress Index</p>
-              <div className="text-6xl font-black text-slate-900">{result.score}</div>
-              <div className={`mt-2 inline-block px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider ${
-                result.classification === 'High' ? 'bg-rose-100 text-rose-700' : 
-                result.classification === 'Moderate' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-              }`}>
-                {result.classification} Risk Profile
-              </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+            <div className={`p-8 rounded-2xl border-2 text-center flex flex-col items-center justify-center ${getLevelColor(result.classification)}`}>
+              <span className="text-sm font-bold uppercase tracking-widest mb-2 opacity-70">Stress Level</span>
+              <span className="text-5xl font-black mb-2">{result.classification}</span>
+              <span className="text-lg font-medium opacity-80">Score: {result.score}/40</span>
             </div>
             
-            <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 italic text-slate-600">
-              "{result.advice}"
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center">
+                <Info className="w-5 h-5 mr-2 text-indigo-500" />
+                What this means
+              </h3>
+              <p className="text-slate-600 leading-relaxed italic">
+                "{result.explanation}"
+              </p>
             </div>
+          </div>
 
+          <div className="bg-slate-50 rounded-2xl p-6 mb-8 border border-slate-100">
+            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center">
+              <CheckCircle2 className="w-5 h-5 mr-2 text-emerald-500" />
+              Recommended Next Steps
+            </h3>
+            <ul className="space-y-3">
+              {result.recommendations?.map((rec, i) => (
+                <li key={i} className="flex items-start text-slate-600">
+                  <span className="w-5 h-5 bg-white rounded-full border border-slate-200 flex items-center justify-center text-[10px] font-bold mr-3 mt-0.5 shrink-0">{i+1}</span>
+                  {rec}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 flex items-start space-x-3 text-amber-800 text-xs">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <p>
+              <strong>Disclaimer:</strong> This is not a medical diagnosis. If you are experiencing severe distress, please contact a healthcare professional or a crisis helpline immediately.
+            </p>
+          </div>
+
+          <div className="mt-10 pt-8 border-t border-slate-100 text-center">
             <button 
-              onClick={() => setResult(null)}
-              className="w-full py-4 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 transition-colors"
+              onClick={() => window.location.reload()}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-10 py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 transition-all"
             >
-              Take Another Check
+              Back to Dashboard
             </button>
           </div>
         </div>
@@ -125,71 +156,125 @@ const StressAssessment: React.FC<StressAssessmentProps> = ({ user }) => {
     );
   }
 
+  const currentQuestion = questions[currentStep];
+  const progress = ((currentStep + 1) / questions.length) * 100;
+
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Wellbeing Insight Check</h1>
-        <p className="text-slate-500">How are you feeling today? This quick check helps our coordinators understand community trends and provides you with personal insight.</p>
+    <div className="max-w-2xl mx-auto space-y-8">
+      <div className="bg-white rounded-3xl p-8 shadow-xl border border-slate-100">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold">
+              {currentStep + 1}
+            </div>
+            <div>
+              <h2 className="font-bold text-slate-900">Wellbeing Check-in</h2>
+              <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Question {currentStep + 1} of {questions.length}</p>
+            </div>
+          </div>
+          <div className="w-32 h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-indigo-600 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+          </div>
+        </div>
+
+        <div className="min-h-[120px] mb-10">
+          <h3 className="text-2xl font-bold text-slate-800 leading-tight">
+            {currentQuestion.text}
+          </h3>
+          <p className="text-slate-500 mt-2 text-sm italic">Please select the option that best describes your experience over the last week.</p>
+        </div>
+
+        <div className="space-y-3">
+          {[
+            { label: 'Never', value: 1 },
+            { label: 'Rarely', value: 2 },
+            { label: 'Sometimes', value: 3 },
+            { label: 'Often', value: 4 },
+            { label: 'Very Often', value: 5 }
+          ].map((option) => (
+            <button
+              key={option.value}
+              onClick={() => handleOptionSelect(currentQuestion.id, option.value)}
+              className={`w-full p-4 rounded-2xl border-2 text-left font-bold transition-all flex justify-between items-center group ${
+                responses[currentQuestion.id] === option.value
+                  ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                  : 'border-slate-100 hover:border-indigo-200 hover:bg-slate-50 text-slate-600'
+              }`}
+            >
+              <span>{option.label}</span>
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                responses[currentQuestion.id] === option.value
+                  ? 'border-indigo-600 bg-indigo-600 text-white'
+                  : 'border-slate-200 group-hover:border-indigo-300'
+              }`}>
+                {responses[currentQuestion.id] === option.value && <CheckCircle2 className="w-4 h-4" />}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex justify-between items-center mt-10 pt-8 border-t border-slate-100">
+          <button
+            disabled={currentStep === 0}
+            onClick={() => setCurrentStep(currentStep - 1)}
+            className="flex items-center space-x-2 text-slate-400 hover:text-indigo-600 disabled:opacity-30 font-bold transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5" />
+            <span>Previous</span>
+          </button>
+
+          {currentStep === questions.length - 1 && responses[currentQuestion.id] ? (
+            <div className="flex flex-col items-end space-y-4">
+              <label className="flex items-center space-x-3 cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                  className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" 
+                />
+                <span className="text-xs text-slate-500 font-medium group-hover:text-slate-700 transition-colors">
+                  I consent to WhānauWell securely storing this data for my wellbeing tracking.
+                </span>
+              </label>
+              
+              {error && <p className="text-rose-600 text-xs font-bold">{error}</p>}
+
+              <button
+                onClick={calculateStress}
+                disabled={submitting || !consent}
+                className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 transition-all flex items-center space-x-2"
+              >
+                {submitting ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <span>Complete Assessment</span>
+                    <ChevronRight className="w-5 h-5" />
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            <button
+              disabled={!responses[currentQuestion.id]}
+              onClick={() => setCurrentStep(currentStep + 1)}
+              className="flex items-center space-x-2 text-indigo-600 hover:text-indigo-800 disabled:opacity-30 font-bold transition-colors"
+            >
+              <span>Next Question</span>
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          )}
+        </div>
       </div>
 
-      <form onSubmit={calculateStress} className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 space-y-12">
-        <Slider 
-          label="Sleep Quality" 
-          description="How well rested do you feel today?"
-          value={formData.sleep} 
-          icon={Moon} 
-          field="sleep" 
-        />
-        
-        <Slider 
-          label="Workload Intensity" 
-          description="How demanding are your current responsibilities?"
-          value={formData.workload} 
-          icon={Briefcase} 
-          field="workload" 
-        />
-        
-        <Slider 
-          label="Overall Mood" 
-          description="General emotional state over the last 24 hours."
-          value={formData.mood} 
-          icon={Smile} 
-          field="mood" 
-        />
-
-        <div className="pt-6 border-t border-slate-100">
-          <div className="flex items-start space-x-4 p-4 bg-indigo-50 rounded-xl border border-indigo-100 mb-8">
-            <div className="flex-shrink-0">
-              <input
-                type="checkbox"
-                id="consent"
-                required
-                checked={formData.consent}
-                onChange={(e) => setFormData({ ...formData, consent: e.target.checked })}
-                className="w-5 h-5 rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500 mt-1"
-              />
-            </div>
-            <label htmlFor="consent" className="text-sm text-slate-600 leading-relaxed cursor-pointer">
-              <span className="font-bold text-indigo-900 block mb-1 flex items-center">
-                <ShieldCheck className="w-4 h-4 mr-1 text-indigo-600" />
-                Ethical Data Consent
-              </span>
-              I consent to WhānauWell storing my stress assessment data. I understand that my individual data is private, but aggregated trends will be visible to my organisation's coordinators to improve community support services.
-            </label>
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-100 transition-all text-lg"
-          >
-            Calculate Insight
-          </button>
+      <div className="bg-indigo-50 rounded-2xl p-6 border border-indigo-100 flex items-start space-x-4">
+        <ShieldCheck className="w-6 h-6 text-indigo-600 shrink-0" />
+        <div>
+          <h4 className="font-bold text-indigo-900 text-sm">Privacy & Ethics First</h4>
+          <p className="text-indigo-700 text-xs mt-1 leading-relaxed">
+            Your responses are encrypted and only accessible by you and authorized coordinators within your organisation to provide better support. We never sell your data.
+          </p>
         </div>
-      </form>
-
-      <div className="mt-8 flex items-center justify-center space-x-4 text-slate-400 text-sm">
-        <div className="flex items-center"><Info className="w-4 h-4 mr-1" /> Anonymous Data Aggregation</div>
-        <div className="flex items-center"><ShieldCheck className="w-4 h-4 mr-1" /> End-to-End Encryption</div>
       </div>
     </div>
   );

@@ -28,16 +28,26 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const handleLogin = (user: User, organisation: any) => {
+  const handleLogin = (user: User, organisation: any, token?: string) => {
     const newState = { user, organisation, isAuthenticated: true };
     setAuth(newState);
     localStorage.setItem('whanauwell_auth', JSON.stringify(newState));
+    if (token) {
+      localStorage.setItem('whanauwell_token', token);
+    }
   };
 
   const handleLogout = () => {
     setAuth({ user: null, organisation: null, isAuthenticated: false });
     localStorage.removeItem('whanauwell_auth');
+    localStorage.removeItem('whanauwell_token');
     setCurrentPage('dashboard');
+  };
+
+  const handleUpdateUser = (updatedUser: User) => {
+    const newState = { ...auth, user: updatedUser };
+    setAuth(newState);
+    localStorage.setItem('whanauwell_auth', JSON.stringify(newState));
   };
 
   if (!auth.isAuthenticated) {
@@ -51,11 +61,11 @@ const App: React.FC = () => {
       case 'programmes':
         return <Programmes user={auth.user!} />;
       case 'stress':
-        return <StressAssessment user={auth.user!} />;
+        return <StressAssessment />;
       case 'members':
         return <Members user={auth.user!} />;
       case 'profile':
-        return <Profile user={auth.user!} organisation={auth.organisation!} />;
+        return <Profile user={auth.user!} onUpdateUser={handleUpdateUser} />;
       default:
         return <Dashboard user={auth.user!} onNavigate={setCurrentPage} />;
     }

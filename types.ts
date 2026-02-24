@@ -27,20 +27,35 @@ export interface Programme {
   organisationId: string;
   coordinatorId: string;
   startDate: string;
+  location?: string;
+  category?: string;
   participants: string[]; // User IDs
+}
+
+export interface StressQuestion {
+  id: string;
+  text: string;
+  category: string;
 }
 
 export interface StressRecord {
   id: string;
   userId: string;
   organisationId: string;
-  sleep: number;
-  workload: number;
-  mood: number;
+  responses: { questionId: string; value: number }[];
   score: number;
   classification: 'Low' | 'Moderate' | 'High';
+  explanation: string;
   timestamp: string;
   consentGiven: boolean;
+}
+
+export interface StressResult {
+  score: number;
+  classification: 'Low' | 'Moderate' | 'High';
+  explanation: string;
+  recommendations: string[];
+  timestamp: string;
 }
 
 export interface AuthState {
