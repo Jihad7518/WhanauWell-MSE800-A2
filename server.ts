@@ -47,7 +47,7 @@ async function startServer() {
 
   // Auth Routes
   app.post("/api/auth/register", async (req, res) => {
-    const { name, email, password, orgCode } = req.body;
+    const { name, email, password, orgCode, adminCode } = req.body;
     
     try {
       // 1. Validate invite code
@@ -62,17 +62,24 @@ async function startServer() {
         return res.status(400).json({ success: false, message: 'User already exists with this email.' });
       }
 
-      // 3. Create user (Force role to MEMBER for public registration)
+      // 3. Determine role
+      let role = 'MEMBER';
+      const adminSecret = process.env.ADMIN_SECRET_CODE || 'WhanauAdmin2024';
+      if (adminCode && adminCode === adminSecret) {
+        role = 'ORG_ADMIN';
+      }
+
+      // 4. Create user
       const passwordHash = await bcrypt.hash(password, 10);
       const user = await User.create({
         name,
         email,
         passwordHash,
-        role: 'MEMBER',
+        role,
         organisationId: organisation._id
       });
 
-      res.status(201).json({ success: true, message: 'Registration successful. Please login.' });
+      res.status(201).json({ success: true, message: `Registration successful as ${role.replace('_', ' ')}. Please login.` });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }

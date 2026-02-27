@@ -92,6 +92,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate }) => {
           <p className="text-slate-500">Welcome to your WhānauWell dashboard.</p>
         </div>
         <div className="flex space-x-3">
+          {(user.role === 'ORG_ADMIN' || user.role === 'COORDINATOR') && (
+            <div className="hidden lg:flex items-center px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-xl mr-2">
+              <div className="text-left">
+                <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider">Invite Code</p>
+                <p className="text-sm font-mono font-bold text-indigo-700">{localStorage.getItem('whanauwell_org_code') || 'WHANAU-01'}</p>
+              </div>
+            </div>
+          )}
           <button 
             onClick={() => onNavigate('stress')}
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-100 transition-all flex items-center space-x-2"
