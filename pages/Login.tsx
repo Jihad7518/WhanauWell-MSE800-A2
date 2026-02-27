@@ -13,6 +13,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [orgCode, setOrgCode] = useState('');
+  const [adminCode, setAdminCode] = useState('');
+  const [showAdminField, setShowAdminField] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -23,7 +25,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     
     const endpoint = isRegistering ? '/api/auth/register' : '/api/auth/login';
     const payload = isRegistering 
-      ? { name, email, password, orgCode }
+      ? { name, email, password, orgCode, adminCode }
       : { email, password, orgCode };
 
     try {
@@ -110,7 +112,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Organisation Invite Code</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1 flex justify-between">
+              Organisation Invite Code
+              <span className="text-[10px] text-indigo-500 font-bold uppercase">Required</span>
+            </label>
             <input
               type="text"
               required
@@ -119,7 +124,38 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               value={orgCode}
               onChange={(e) => setOrgCode(e.target.value)}
             />
+            <p className="text-[10px] text-slate-400 mt-1 italic">
+              Ask your coordinator for your community's unique code. (e.g. WHANAU-01)
+            </p>
           </div>
+
+          {isRegistering && (
+            <div className="pt-2">
+              <button 
+                type="button"
+                onClick={() => setShowAdminField(!showAdminField)}
+                className="text-[10px] text-slate-500 hover:text-indigo-600 font-bold uppercase tracking-wider flex items-center"
+              >
+                {showAdminField ? '− Hide Admin Options' : '+ Register as Admin/Coordinator?'}
+              </button>
+              
+              {showAdminField && (
+                <div className="mt-2 p-4 bg-slate-50 rounded-xl border border-slate-100 animate-in fade-in slide-in-from-top-2">
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Admin Security Code</label>
+                  <input
+                    type="password"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                    placeholder="Enter admin secret"
+                    value={adminCode}
+                    onChange={(e) => setAdminCode(e.target.value)}
+                  />
+                  <p className="text-[9px] text-slate-400 mt-1">
+                    Only required for Organisation Admins. Leave blank for Member access.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           <button
             type="submit"

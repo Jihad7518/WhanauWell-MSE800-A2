@@ -32,6 +32,9 @@ const App: React.FC = () => {
     const newState = { user, organisation, isAuthenticated: true };
     setAuth(newState);
     localStorage.setItem('whanauwell_auth', JSON.stringify(newState));
+    if (organisation?.code) {
+      localStorage.setItem('whanauwell_org_code', organisation.code);
+    }
     if (token) {
       localStorage.setItem('whanauwell_token', token);
     }
@@ -41,6 +44,7 @@ const App: React.FC = () => {
     setAuth({ user: null, organisation: null, isAuthenticated: false });
     localStorage.removeItem('whanauwell_auth');
     localStorage.removeItem('whanauwell_token');
+    localStorage.removeItem('whanauwell_org_code');
     setCurrentPage('dashboard');
   };
 
