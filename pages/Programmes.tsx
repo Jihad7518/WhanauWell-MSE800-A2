@@ -16,7 +16,9 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
   const [selectedProgramme, setSelectedProgramme] = useState<Programme | null>(null);
   const [newProgramme, setNewProgramme] = useState({
     title: '',
-    description: '',
+    publicSummary: '',
+    memberDetails: '',
+    visibility: 'ORG_ONLY' as 'PUBLIC' | 'ORG_ONLY',
     startDate: new Date().toISOString().split('T')[0],
     location: '',
     category: 'Health & Wellbeing'
@@ -57,7 +59,15 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
       if (data.success) {
         fetchProgrammes();
         setShowModal(false);
-        setNewProgramme({ title: '', description: '', startDate: new Date().toISOString().split('T')[0], location: '', category: 'Health & Wellbeing' });
+        setNewProgramme({ 
+          title: '', 
+          publicSummary: '', 
+          memberDetails: '', 
+          visibility: 'ORG_ONLY',
+          startDate: new Date().toISOString().split('T')[0], 
+          location: '', 
+          category: 'Health & Wellbeing' 
+        });
       }
     } catch (error) {
       console.error('Create error:', error);
@@ -120,8 +130,19 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
                 <input required type="text" className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="e.g. Community Garden Workshop" value={newProgramme.title} onChange={e => setNewProgramme({...newProgramme, title: e.target.value})} />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Description</label>
-                <textarea required rows={3} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Describe the goals..." value={newProgramme.description} onChange={e => setNewProgramme({...newProgramme, description: e.target.value})} />
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Public Summary (Short)</label>
+                <textarea required rows={2} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Short description for public browsing..." value={newProgramme.publicSummary} onChange={e => setNewProgramme({...newProgramme, publicSummary: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Member Details (Full)</label>
+                <textarea required rows={4} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Full details, resources, links (Markdown supported)..." value={newProgramme.memberDetails} onChange={e => setNewProgramme({...newProgramme, memberDetails: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Visibility</label>
+                <select className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" value={newProgramme.visibility} onChange={e => setNewProgramme({...newProgramme, visibility: e.target.value as any})}>
+                  <option value="ORG_ONLY">Organisation Only (Private)</option>
+                  <option value="PUBLIC">Public (Visible to everyone)</option>
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -166,7 +187,15 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
               </div>
               <div className="prose prose-slate max-w-none">
                 <h4 className="text-lg font-bold text-slate-800 mb-2">About this programme</h4>
-                <p className="text-slate-600 leading-relaxed">{selectedProgramme.description}</p>
+                <p className="text-slate-600 leading-relaxed mb-4">{selectedProgramme.publicSummary}</p>
+                {selectedProgramme.memberDetails && (
+                  <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                    <h5 className="text-sm font-bold text-indigo-900 mb-2">Member Resources</h5>
+                    <div className="text-sm text-indigo-800">
+                      {selectedProgramme.memberDetails}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
                 <div className="text-sm text-slate-500">
@@ -244,7 +273,7 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
                 </div>
               </div>
               
-              <p className="text-slate-600 mb-6 line-clamp-2">{p.description}</p>
+              <p className="text-slate-600 mb-6 line-clamp-2">{p.publicSummary}</p>
 
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="flex items-center text-sm text-slate-500">

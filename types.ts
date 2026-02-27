@@ -23,13 +23,17 @@ export interface Organisation {
 export interface Programme {
   id: string;
   title: string;
-  description: string;
-  organisationId: string;
-  coordinatorId: string;
+  publicSummary: string;
+  memberDetails: string;
+  visibility: 'PUBLIC' | 'ORG_ONLY';
+  organisationId: any;
+  coordinatorId: any;
   startDate: string;
   location?: string;
   category?: string;
   participants: string[]; // User IDs
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface StressQuestion {

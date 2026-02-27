@@ -1,14 +1,25 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { User, UserRole } from '../types';
-import { ShieldCheck, ChevronRight, UserPlus, LogIn } from 'lucide-react';
+import { ShieldCheck, ChevronRight, UserPlus, LogIn, ArrowLeft } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (user: User, organisation: any, token?: string) => void;
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [isRegistering, setIsRegistering] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [isRegistering, setIsRegistering] = useState(location.pathname === '/auth/register');
+  
+  const queryParams = new URLSearchParams(location.search);
+  const redirectPath = queryParams.get('redirect') || '/app/dashboard';
+
+  useEffect(() => {
+    setIsRegistering(location.pathname === '/auth/register');
+  }, [location.pathname]);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -40,9 +51,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       if (data.success) {
         if (isRegistering) {
           setIsRegistering(false);
+          navigate('/auth/login');
           setError('Registration successful! Please login.');
         } else {
           onLogin(data.user, data.organisation, data.token);
+          navigate(redirectPath);
         }
       } else {
         setError(data.message || 'Authentication failed');
@@ -56,7 +69,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4 relative">
+      <Link to="/" className="absolute top-8 left-8 flex items-center text-slate-500 font-bold hover:text-indigo-600 transition-colors">
+        <ArrowLeft className="w-5 h-5 mr-2" /> Back to Website
+      </Link>
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden">
         <div className="bg-indigo-600 p-8 text-white text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-full mb-4">
@@ -176,7 +192,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <button 
               type="button"
               onClick={() => {
-                setIsRegistering(!isRegistering);
+                const newPath = isRegistering ? '/auth/login' : '/auth/register';
+                navigate(`${newPath}${location.search}`);
                 setError('');
               }}
               className="text-indigo-600 hover:text-indigo-800 text-sm font-bold flex items-center justify-center mx-auto space-x-1"

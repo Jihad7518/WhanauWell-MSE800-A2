@@ -156,11 +156,63 @@ async function startServer() {
     }
   });
 
+  // Public Programme Routes
+  app.get("/api/public/programmes", async (req, res) => {
+    try {
+      const programmes = await Programme.find({ visibility: 'PUBLIC' }).populate('organisationId', 'name');
+      res.json({ success: true, data: programmes });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.get("/api/public/programmes/:id", async (req, res) => {
+    try {
+      const programme = await Programme.findById(req.params.id).populate('organisationId', 'name');
+      if (!programme) return res.status(404).json({ success: false, message: 'Programme not found' });
+      
+      // If public, return public fields. If private, check auth (but this is a public endpoint)
+      if (programme.visibility !== 'PUBLIC') {
+        return res.status(403).json({ success: false, message: 'Private programme' });
+      }
+
+      res.json({ success: true, data: programme });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
   // Programme Routes
   app.get("/api/programmes", authMiddleware, tenantMiddleware, async (req: any, res) => {
     try {
-      const programmes = await Programme.find({ organisationId: req.tenantId }).populate('coordinatorId', 'name');
+      // Members see all ORG_ONLY for their org + all PUBLIC (even from other orgs? prompt says "All ORG_ONLY for their organisation PLUS public programmes")
+      // Usually "public" in multi-tenant means public to the world.
+      const programmes = await Programme.find({
+        $or: [
+          { organisationId: req.tenantId },
+          { visibility: 'PUBLIC' }
+        ]
+      }).populate('coordinatorId', 'name').populate('organisationId', 'name');
       res.json({ success: true, data: programmes });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.get("/api/programmes/:id", authMiddleware, async (req: any, res) => {
+    try {
+      const programme = await Programme.findById(req.params.id).populate('coordinatorId', 'name').populate('organisationId', 'name');
+      if (!programme) return res.status(404).json({ success: false, message: 'Programme not found' });
+      
+      // Check if user is in the same org or if it's public
+      const isSameOrg = programme.organisationId._id.toString() === req.user.organisationId.toString();
+      const isPublic = programme.visibility === 'PUBLIC';
+
+      if (!isSameOrg && !isPublic) {
+        return res.status(403).json({ success: false, message: 'Access denied' });
+      }
+
+      res.json({ success: true, data: programme });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }
@@ -168,8 +220,15 @@ async function startServer() {
 
   app.post("/api/programmes", authMiddleware, roleMiddleware(['ORG_ADMIN', 'COORDINATOR']), tenantMiddleware, async (req: any, res) => {
     try {
+      const { title, publicSummary, memberDetails, visibility, startDate, location, category } = req.body;
       const programme = await Programme.create({
-        ...req.body,
+        title,
+        publicSummary,
+        memberDetails,
+        visibility: visibility || 'ORG_ONLY',
+        startDate,
+        location,
+        category,
         organisationId: req.tenantId,
         coordinatorId: req.user.id
       });
@@ -184,11 +243,11 @@ async function startServer() {
       const programme = await Programme.findById(req.params.id);
       if (!programme) return res.status(404).json({ success: false, message: 'Programme not found' });
       
-      if (programme.participants.includes(req.user.id)) {
+      if (programme.participants.some(p => p.toString() === req.user.id)) {
         return res.status(400).json({ success: false, message: 'Already enrolled' });
       }
 
-      programme.participants.push(req.user.id);
+      programme.participants.push(new mongoose.Types.ObjectId(req.user.id) as any);
       await programme.save();
       res.json({ success: true, data: programme });
     } catch (error: any) {
@@ -273,16 +332,44 @@ async function startServer() {
       const recentProgrammes = await Programme.find({ organisationId: req.tenantId }).sort({ createdAt: -1 }).limit(3);
       const recentStress = await StressRecord.find({ organisationId: req.tenantId }).sort({ createdAt: -1 }).limit(3).populate('userId', 'name');
 
+      // Participation trends (last 4 weeks)
+      const fourWeeksAgo = new Date();
+      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+      
+      const weeklyParticipation = await StressRecord.aggregate([
+        { 
+          $match: { 
+            organisationId: new mongoose.Types.ObjectId(req.tenantId), 
+            createdAt: { $gte: fourWeeksAgo } 
+          } 
+        },
+        {
+          $group: {
+            _id: { $week: "$createdAt" },
+            count: { $sum: 1 },
+            date: { $first: "$createdAt" }
+          }
+        },
+        { $sort: { "_id": 1 } }
+      ]);
+
+      const participationTrend = weeklyParticipation.map(w => ({
+        week: `Week ${w._id}`,
+        count: w.count,
+        date: w.date
+      }));
+
       res.json({
         success: true,
         data: {
           programmesCount,
           membersCount,
           stressStats,
+          participationTrend,
           recentActivities: [
             ...recentProgrammes.map(p => ({ type: 'programme', title: p.title, date: p.createdAt })),
             ...recentStress.map(s => ({ type: 'stress', title: `Check-in by ${(s.userId as any).name}`, date: s.createdAt }))
-          ].sort((a: any, b: any) => b.date - a.date).slice(0, 5)
+          ].sort((a: any, b: any) => b.date.getTime() - a.date.getTime()).slice(0, 5)
         }
       });
     } catch (error: any) {

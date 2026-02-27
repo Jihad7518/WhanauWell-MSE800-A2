@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { User, UserRole, AuthState } from './types';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -9,7 +10,15 @@ import Members from './pages/Members';
 import Profile from './pages/Profile';
 import Layout from './components/Layout';
 
-type Page = 'dashboard' | 'programmes' | 'stress' | 'members' | 'profile';
+// Public Pages
+import Home from './pages/public/Home';
+import PublicProgrammes from './pages/public/PublicProgrammes';
+import PublicProgrammeDetails from './pages/public/PublicProgrammeDetails';
+import About from './pages/public/About';
+import Contact from './pages/public/Contact';
+import Privacy from './pages/public/Privacy';
+import PublicNavbar from './components/public/PublicNavbar';
+import PublicFooter from './components/public/PublicFooter';
 
 const App: React.FC = () => {
   const [auth, setAuth] = useState<AuthState>({
@@ -18,13 +27,17 @@ const App: React.FC = () => {
     isAuthenticated: false,
   });
 
-  const [currentPage, setCurrentPage] = useState<Page>('dashboard');
+  const location = useLocation();
 
-  // Session recovery simulation
+  // Session recovery
   useEffect(() => {
     const savedAuth = localStorage.getItem('whanauwell_auth');
     if (savedAuth) {
-      setAuth(JSON.parse(savedAuth));
+      try {
+        setAuth(JSON.parse(savedAuth));
+      } catch (e) {
+        console.error("Failed to parse auth", e);
+      }
     }
   }, []);
 
@@ -45,7 +58,6 @@ const App: React.FC = () => {
     localStorage.removeItem('whanauwell_auth');
     localStorage.removeItem('whanauwell_token');
     localStorage.removeItem('whanauwell_org_code');
-    setCurrentPage('dashboard');
   };
 
   const handleUpdateUser = (updatedUser: User) => {
@@ -54,37 +66,61 @@ const App: React.FC = () => {
     localStorage.setItem('whanauwell_auth', JSON.stringify(newState));
   };
 
-  if (!auth.isAuthenticated || !auth.user) {
-    return <Login onLogin={handleLogin} />;
-  }
+  const isAppRoute = location.pathname.startsWith('/app');
+  const isAuthRoute = location.pathname.startsWith('/auth');
 
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'dashboard':
-        return <Dashboard user={auth.user!} onNavigate={setCurrentPage} />;
-      case 'programmes':
-        return <Programmes user={auth.user!} />;
-      case 'stress':
-        return <StressAssessment />;
-      case 'members':
-        return <Members user={auth.user!} />;
-      case 'profile':
-        return <Profile user={auth.user!} onUpdateUser={handleUpdateUser} />;
-      default:
-        return <Dashboard user={auth.user!} onNavigate={setCurrentPage} />;
+  // Protected Route Wrapper
+  const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+    if (!auth.isAuthenticated || !auth.user) {
+      return <Navigate to={`/auth/login?redirect=${location.pathname}`} replace />;
     }
+    return (
+      <Layout 
+        user={auth.user} 
+        organisation={auth.organisation!} 
+        onLogout={handleLogout}
+        currentPage={location.pathname.split('/').pop() || 'dashboard'}
+        onNavigate={(page) => {}} // Not used with router
+      >
+        {children}
+      </Layout>
+    );
   };
 
   return (
-    <Layout 
-      user={auth.user!} 
-      organisation={auth.organisation!} 
-      onLogout={handleLogout}
-      currentPage={currentPage}
-      onNavigate={setCurrentPage}
-    >
-      {renderPage()}
-    </Layout>
+    <div className="min-h-screen flex flex-col">
+      {!isAppRoute && !isAuthRoute && (
+        <PublicNavbar user={auth.user} organisation={auth.organisation} onLogout={handleLogout} />
+      )}
+      
+      <div className="flex-1">
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/programmes" element={<PublicProgrammes />} />
+          <Route path="/programmes/:id" element={<PublicProgrammeDetails user={auth.user} />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/privacy" element={<Privacy />} />
+
+          {/* Auth Routes */}
+          <Route path="/auth/login" element={<Login onLogin={handleLogin} />} />
+          <Route path="/auth/register" element={<Login onLogin={handleLogin} />} />
+
+          {/* Protected App Routes */}
+          <Route path="/app/dashboard" element={<ProtectedRoute><Dashboard user={auth.user!} /></ProtectedRoute>} />
+          <Route path="/app/programmes" element={<ProtectedRoute><Programmes user={auth.user!} /></ProtectedRoute>} />
+          <Route path="/app/stress" element={<ProtectedRoute><StressAssessment /></ProtectedRoute>} />
+          <Route path="/app/members" element={<ProtectedRoute><Members user={auth.user!} /></ProtectedRoute>} />
+          <Route path="/app/profile" element={<ProtectedRoute><Profile user={auth.user!} onUpdateUser={handleUpdateUser} /></ProtectedRoute>} />
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
+
+      {!isAppRoute && !isAuthRoute && <PublicFooter />}
+    </div>
   );
 };
 

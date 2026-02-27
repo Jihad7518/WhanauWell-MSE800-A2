@@ -3,7 +3,10 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IProgramme extends Document {
   title: string;
-  description: string;
+  description: string; // This will be the legacy field, we'll map it to memberDetails if needed
+  publicSummary: string;
+  memberDetails: string;
+  visibility: 'PUBLIC' | 'ORG_ONLY';
   organisationId: mongoose.Types.ObjectId;
   coordinatorId: mongoose.Types.ObjectId;
   startDate: Date;
@@ -16,7 +19,10 @@ export interface IProgramme extends Document {
 
 const ProgrammeSchema: Schema = new Schema({
   title: { type: String, required: true },
-  description: { type: String, required: true },
+  publicSummary: { type: String, required: true },
+  memberDetails: { type: String, required: true },
+  visibility: { type: String, enum: ['PUBLIC', 'ORG_ONLY'], default: 'ORG_ONLY' },
+  description: { type: String }, // Keep for compatibility or remove if safe
   organisationId: { type: Schema.Types.ObjectId, ref: 'Organisation', required: true },
   coordinatorId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   startDate: { type: Date, required: true },

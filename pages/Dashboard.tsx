@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   Users, 
   Calendar, 
@@ -26,10 +27,9 @@ import {
 
 interface DashboardProps {
   user: any;
-  onNavigate: (page: string) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -66,6 +66,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate }) => {
     { name: 'High', value: stats.stressStats.high || 0, color: '#ef4444' }
   ].filter(d => d.value > 0) : [];
 
+  const participationData = stats?.participationTrend?.length > 0 
+    ? stats.participationTrend 
+    : [
+        { week: 'Week 1', count: 0 },
+        { week: 'Week 2', count: 0 },
+        { week: 'Week 3', count: 0 },
+        { week: 'Week 4', count: 0 }
+      ];
+
   const StatCard = ({ title, value, icon: Icon, trend, color }: any) => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-4">
@@ -100,13 +109,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate }) => {
               </div>
             </div>
           )}
-          <button 
-            onClick={() => onNavigate('stress')}
+          <Link 
+            to="/app/stress"
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-100 transition-all flex items-center space-x-2"
           >
             <Plus className="w-5 h-5" />
             <span>Daily Stress Check</span>
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -141,32 +150,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-xl font-bold text-slate-900">Community Stress Trends</h2>
-            <select className="bg-slate-50 border-none rounded-lg text-sm font-medium px-3 py-1 outline-none">
-              <option>Last 30 Days</option>
-              <option>Last 7 Days</option>
-            </select>
+            <h2 className="text-xl font-bold text-slate-900">Participation Trends</h2>
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Last 4 Weeks</div>
           </div>
           <div className="h-80 w-full">
-            {stats?.stressStats?.total > 0 ? (
+            {participationData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={[
-                  { name: 'Low', count: stats.stressStats.low || 0 },
-                  { name: 'Moderate', count: stats.stressStats.moderate || 0 },
-                  { name: 'High', count: stats.stressStats.high || 0 }
-                ]}>
+                <BarChart data={participationData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                  <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
                   <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
                   <Tooltip 
                     cursor={{fill: '#f8fafc'}}
                     contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
                   />
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                    <Cell fill="#10b981" />
-                    <Cell fill="#f59e0b" />
-                    <Cell fill="#ef4444" />
-                  </Bar>
+                  <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -263,12 +261,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate }) => {
               Our coordinators are here to support your wellbeing journey. Join a programme or complete a check-in to get personalized recommendations.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <button 
-                onClick={() => onNavigate('programmes')}
+              <Link 
+                to="/app/programmes"
                 className="bg-white text-indigo-900 px-6 py-3 rounded-xl font-bold hover:bg-indigo-50 transition-colors flex items-center justify-center"
               >
                 Browse Programmes
-              </button>
+              </Link>
               <button className="bg-indigo-800 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center">
                 Contact Coordinator
               </button>
