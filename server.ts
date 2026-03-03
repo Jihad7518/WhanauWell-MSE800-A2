@@ -28,30 +28,25 @@ async function startServer() {
     console.log("Connected to MongoDB successfully");
     
     // Seed an initial organisation if none exists
-    const orgCount = await Organisation.countDocuments();
-    let defaultOrgId;
-    if (orgCount === 0) {
-      const org = await Organisation.create({
+    let masterOrg = await Organisation.findOne({ code: 'MASTER' });
+    if (!masterOrg) {
+      masterOrg = await Organisation.create({
         name: 'WhānauWell Global',
         code: 'MASTER'
       });
-      defaultOrgId = org._id;
-      console.log("Seeded initial organisation: MASTER");
-    } else {
-      const org = await Organisation.findOne({ code: 'MASTER' });
-      defaultOrgId = org?._id;
+      console.log("Seeded MASTER organisation");
     }
 
     // Seed Super Admin
-    const superAdmin = await User.findOne({ role: 'SUPER_ADMIN' });
-    if (!superAdmin && defaultOrgId) {
+    const superAdmin = await User.findOne({ email: 'admin@whanauwell.org' });
+    if (!superAdmin) {
       const passwordHash = await bcrypt.hash('WhanauWell2026!', 10);
       await User.create({
         name: 'System Administrator',
         email: 'admin@whanauwell.org',
         passwordHash,
         role: 'SUPER_ADMIN',
-        organisationId: defaultOrgId
+        organisationId: masterOrg._id
       });
       console.log("Seeded Super Admin: admin@whanauwell.org");
     }
@@ -173,7 +168,7 @@ async function startServer() {
 
       const token = jwt.sign(
         { id: user._id, email: user.email, role: user.role, organisationId: org._id },
-        process.env.JWT_SECRET || 'Jihadmse800secretkey',
+        process.env.JWT_SECRET || 'WhanauWellSecret2026',
         { expiresIn: process.env.TOKEN_EXPIRE || '1d' }
       );
 
