@@ -29,12 +29,31 @@ async function startServer() {
     
     // Seed an initial organisation if none exists
     const orgCount = await Organisation.countDocuments();
+    let defaultOrgId;
     if (orgCount === 0) {
-      await Organisation.create({
-        name: 'Waitaha Health Trust',
-        code: 'WHANAU-01'
+      const org = await Organisation.create({
+        name: 'WhānauWell Global',
+        code: 'MASTER'
       });
-      console.log("Seeded initial organisation: WHANAU-01");
+      defaultOrgId = org._id;
+      console.log("Seeded initial organisation: MASTER");
+    } else {
+      const org = await Organisation.findOne({ code: 'MASTER' });
+      defaultOrgId = org?._id;
+    }
+
+    // Seed Super Admin
+    const superAdmin = await User.findOne({ role: 'SUPER_ADMIN' });
+    if (!superAdmin && defaultOrgId) {
+      const passwordHash = await bcrypt.hash('WhanauWell2026!', 10);
+      await User.create({
+        name: 'System Administrator',
+        email: 'admin@whanauwell.org',
+        passwordHash,
+        role: 'SUPER_ADMIN',
+        organisationId: defaultOrgId
+      });
+      console.log("Seeded Super Admin: admin@whanauwell.org");
     }
   } catch (err) {
     console.error("MongoDB connection error:", err);
@@ -43,6 +62,54 @@ async function startServer() {
   // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", message: "WhānauWell API is running" });
+  });
+
+  // Super Admin Routes
+  app.get("/api/admin/organisations", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      const organisations = await Organisation.find();
+      const orgsWithStats = await Promise.all(organisations.map(async (org) => {
+        const userCount = await User.countDocuments({ organisationId: org._id });
+        const programmeCount = await Programme.countDocuments({ organisationId: org._id });
+        return {
+          ...org.toObject(),
+          userCount,
+          programmeCount
+        };
+      }));
+      res.json({ success: true, data: orgsWithStats });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.post("/api/admin/organisations", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      const { name, code } = req.body;
+      const existing = await Organisation.findOne({ code });
+      if (existing) return res.status(400).json({ success: false, message: 'Organisation code already exists' });
+      
+      const organisation = await Organisation.create({ name, code });
+      res.status(201).json({ success: true, data: organisation });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.get("/api/admin/stats", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      const totalUsers = await User.countDocuments();
+      const totalOrgs = await Organisation.countDocuments();
+      const totalProgrammes = await Programme.countDocuments();
+      const totalAssessments = await StressRecord.countDocuments();
+      
+      res.json({
+        success: true,
+        data: { totalUsers, totalOrgs, totalProgrammes, totalAssessments }
+      });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
   });
 
   // Auth Routes

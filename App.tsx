@@ -8,6 +8,7 @@ import Programmes from './pages/Programmes';
 import StressAssessment from './pages/StressAssessment';
 import Members from './pages/Members';
 import Profile from './pages/Profile';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import Layout from './components/Layout';
 
 // Public Pages
@@ -113,6 +114,7 @@ const App: React.FC = () => {
           <Route path="/app/stress" element={<ProtectedRoute><StressAssessment /></ProtectedRoute>} />
           <Route path="/app/members" element={<ProtectedRoute><Members user={auth.user!} /></ProtectedRoute>} />
           <Route path="/app/profile" element={<ProtectedRoute><Profile user={auth.user!} onUpdateUser={handleUpdateUser} /></ProtectedRoute>} />
+          <Route path="/app/admin" element={<ProtectedRoute><SuperAdminDashboard /></ProtectedRoute>} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
