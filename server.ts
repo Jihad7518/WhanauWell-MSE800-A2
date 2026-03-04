@@ -78,6 +78,48 @@ async function startServer() {
     }
   });
 
+  app.get("/api/admin/users", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      const users = await User.find().populate('organisationId', 'name code').select('-passwordHash');
+      res.json({ success: true, data: users });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.get("/api/admin/programmes", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      const programmes = await Programme.find()
+        .populate('organisationId', 'name code')
+        .populate('coordinatorId', 'name email');
+      res.json({ success: true, data: programmes });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.post("/api/admin/programmes", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      const { title, publicSummary, memberDetails, visibility, startDate, location, category, targetOrganisationId } = req.body;
+      
+      const programme = await Programme.create({
+        title,
+        publicSummary,
+        memberDetails,
+        visibility: visibility || 'GLOBAL',
+        startDate,
+        location,
+        category,
+        organisationId: targetOrganisationId || req.user.organisationId,
+        coordinatorId: req.user.id
+      });
+      
+      res.status(201).json({ success: true, data: programme });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
   app.post("/api/admin/organisations", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
     try {
       const { name, code } = req.body;
