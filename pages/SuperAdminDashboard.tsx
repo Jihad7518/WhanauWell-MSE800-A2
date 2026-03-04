@@ -20,7 +20,9 @@ import {
   MapPin,
   Globe,
   Lock,
-  ChevronRight
+  ChevronRight,
+  Megaphone,
+  XCircle
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -50,10 +52,11 @@ const SuperAdminDashboard: React.FC = () => {
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+  const [broadcastHistory, setBroadcastHistory] = useState<any[]>([]);
 
   const fetchData = async () => {
     try {
-      const [orgsRes, statsRes, usersRes, progsRes] = await Promise.all([
+      const [orgsRes, statsRes, usersRes, progsRes, broadcastsRes] = await Promise.all([
         fetch('/api/admin/organisations', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
         }),
@@ -65,6 +68,9 @@ const SuperAdminDashboard: React.FC = () => {
         }),
         fetch('/api/admin/programmes', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+        }),
+        fetch('/api/admin/broadcasts', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
         })
       ]);
       
@@ -72,11 +78,13 @@ const SuperAdminDashboard: React.FC = () => {
       const statsData = await statsRes.json();
       const usersData = await usersRes.json();
       const progsData = await progsRes.json();
+      const broadcastsData = await broadcastsRes.json();
       
       if (orgsData.success) setOrganisations(orgsData.data);
       if (statsData.success) setStats(statsData.data);
       if (usersData.success) setUsers(usersData.data);
       if (progsData.success) setProgrammes(progsData.data);
+      if (broadcastsData.success) setBroadcastHistory(broadcastsData.data);
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -104,9 +112,26 @@ const SuperAdminDashboard: React.FC = () => {
         setSuccess('Broadcast sent successfully!');
         setBroadcastMessage('');
         setShowBroadcastModal(false);
+        fetchData(); // Refresh history
       }
     } catch (err) {
       setError('Failed to send broadcast');
+    }
+  };
+
+  const deleteBroadcast = async (id: string) => {
+    try {
+      const response = await fetch(`/api/admin/broadcasts/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Broadcast deleted');
+        fetchData();
+      }
+    } catch (err) {
+      setError('Failed to delete broadcast');
     }
   };
 
@@ -390,6 +415,36 @@ const SuperAdminDashboard: React.FC = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Broadcast History */}
+              <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-black text-slate-900">Broadcast History</h3>
+                  <Megaphone className="w-4 h-4 text-slate-300" />
+                </div>
+                <div className="space-y-4">
+                  {broadcastHistory.length === 0 ? (
+                    <p className="text-center py-4 text-slate-400 text-sm italic">No past announcements.</p>
+                  ) : (
+                    broadcastHistory.slice(0, 5).map((b) => (
+                      <div key={b._id} className="p-4 bg-slate-50 rounded-2xl group relative">
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">
+                            {new Date(b.createdAt).toLocaleDateString()}
+                          </span>
+                          <button 
+                            onClick={() => deleteBroadcast(b._id)}
+                            className="text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-slate-600 font-medium line-clamp-2">{b.message}</p>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>

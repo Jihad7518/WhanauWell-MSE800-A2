@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, UserRole, Organisation } from '../types';
 import { 
   LayoutDashboard, 
@@ -8,7 +8,9 @@ import {
   LogOut, 
   Settings,
   Users,
-  ShieldCheck
+  ShieldCheck,
+  Megaphone,
+  XCircle
 } from 'lucide-react';
 
 import { Link, useLocation } from 'react-router-dom';
@@ -24,6 +26,26 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, user, organisation, onLogout }) => {
   const location = useLocation();
+  const [broadcasts, setBroadcasts] = useState<any[]>([]);
+  const [dismissedBroadcasts, setDismissedBroadcasts] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchBroadcasts = async () => {
+      try {
+        const response = await fetch('/api/broadcasts', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+        });
+        const data = await response.json();
+        if (data.success) setBroadcasts(data.data);
+      } catch (err) {
+        console.error('Failed to fetch broadcasts', err);
+      }
+    };
+    fetchBroadcasts();
+  }, []);
+
+  const activeBroadcasts = broadcasts.filter(b => !dismissedBroadcasts.includes(b._id));
+
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: Object.values(UserRole), path: '/app/dashboard' },
     { id: 'admin', label: 'Platform Admin', icon: ShieldCheck, roles: [UserRole.SUPER_ADMIN], path: '/app/admin' },
@@ -89,6 +111,26 @@ const Layout: React.FC<LayoutProps> = ({ children, user, organisation, onLogout 
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto flex flex-col">
+        {/* Broadcast Banner */}
+        {activeBroadcasts.length > 0 && (
+          <div className="bg-indigo-600 text-white px-6 py-3 flex items-center justify-between animate-in slide-in-from-top duration-500 relative z-50">
+            <div className="flex items-center space-x-3 overflow-hidden">
+              <div className="bg-white/20 p-1.5 rounded-lg flex-shrink-0">
+                <Megaphone className="w-4 h-4" />
+              </div>
+              <p className="text-sm font-bold truncate">
+                <span className="opacity-70 mr-2 uppercase text-[10px] tracking-widest">Global Announcement:</span>
+                {activeBroadcasts[0].message}
+              </p>
+            </div>
+            <button 
+              onClick={() => setDismissedBroadcasts([...dismissedBroadcasts, activeBroadcasts[0]._id])}
+              className="p-1 hover:bg-white/10 rounded-full transition-colors"
+            >
+              <XCircle className="w-5 h-5" />
+            </button>
+          </div>
+        )}
         {/* Navbar */}
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-10">
           <h2 className="text-lg font-semibold text-slate-800 capitalize">{currentPageLabel}</h2>
