@@ -22,7 +22,10 @@ import {
   Lock,
   ChevronRight,
   Megaphone,
-  XCircle
+  XCircle,
+  Edit,
+  History,
+  Heart
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -53,10 +56,27 @@ const SuperAdminDashboard: React.FC = () => {
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   const [broadcastHistory, setBroadcastHistory] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [wellbeingInsights, setWellbeingInsights] = useState<any[]>([]);
+  const [showLogsModal, setShowLogsModal] = useState(false);
+  const [showProgrammeModal, setShowProgrammeModal] = useState(false);
+  const [editingBroadcast, setEditingBroadcast] = useState<any>(null);
+  const [selectedOrg, setSelectedOrg] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+
+  const [newProgramme, setNewProgramme] = useState({
+    title: '',
+    publicSummary: '',
+    memberDetails: '',
+    visibility: 'GLOBAL',
+    startDate: '',
+    location: '',
+    category: 'Wellbeing'
+  });
 
   const fetchData = async () => {
     try {
-      const [orgsRes, statsRes, usersRes, progsRes, broadcastsRes] = await Promise.all([
+      const [orgsRes, statsRes, usersRes, progsRes, broadcastsRes, logsRes, insightsRes] = await Promise.all([
         fetch('/api/admin/organisations', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
         }),
@@ -71,6 +91,12 @@ const SuperAdminDashboard: React.FC = () => {
         }),
         fetch('/api/admin/broadcasts', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+        }),
+        fetch('/api/admin/logs', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+        }),
+        fetch('/api/admin/wellbeing-insights', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
         })
       ]);
       
@@ -79,12 +105,16 @@ const SuperAdminDashboard: React.FC = () => {
       const usersData = await usersRes.json();
       const progsData = await progsRes.json();
       const broadcastsData = await broadcastsRes.json();
+      const logsData = await logsRes.json();
+      const insightsData = await insightsRes.json();
       
       if (orgsData.success) setOrganisations(orgsData.data);
       if (statsData.success) setStats(statsData.data);
       if (usersData.success) setUsers(usersData.data);
       if (progsData.success) setProgrammes(progsData.data);
       if (broadcastsData.success) setBroadcastHistory(broadcastsData.data);
+      if (logsData.success) setLogs(logsData.data);
+      if (insightsData.success) setWellbeingInsights(insightsData.data);
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -99,8 +129,11 @@ const SuperAdminDashboard: React.FC = () => {
   const handleBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/admin/broadcast', {
-        method: 'POST',
+      const url = editingBroadcast ? `/api/admin/broadcasts/${editingBroadcast._id}` : '/api/admin/broadcast';
+      const method = editingBroadcast ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
@@ -109,13 +142,45 @@ const SuperAdminDashboard: React.FC = () => {
       });
       const data = await response.json();
       if (data.success) {
-        setSuccess('Broadcast sent successfully!');
+        setSuccess(editingBroadcast ? 'Broadcast updated!' : 'Broadcast sent successfully!');
         setBroadcastMessage('');
         setShowBroadcastModal(false);
-        fetchData(); // Refresh history
+        setEditingBroadcast(null);
+        fetchData();
       }
     } catch (err) {
-      setError('Failed to send broadcast');
+      setError('Failed to process broadcast');
+    }
+  };
+
+  const handleCreateProgramme = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/api/admin/programmes', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
+        },
+        body: JSON.stringify(newProgramme)
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Global programme hosted successfully!');
+        setShowProgrammeModal(false);
+        setNewProgramme({
+          title: '',
+          publicSummary: '',
+          memberDetails: '',
+          visibility: 'GLOBAL',
+          startDate: '',
+          location: '',
+          category: 'Wellbeing'
+        });
+        fetchData();
+      }
+    } catch (err) {
+      setError('Failed to host programme');
     }
   };
 
@@ -222,8 +287,11 @@ const SuperAdminDashboard: React.FC = () => {
         </div>
         
         <div className="flex items-center space-x-3">
-          <button className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all flex items-center space-x-2">
-            <Filter className="w-4 h-4" />
+          <button 
+            onClick={() => setShowLogsModal(true)}
+            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all flex items-center space-x-2"
+          >
+            <History className="w-4 h-4" />
             <span>Platform Logs</span>
           </button>
           <button 
@@ -285,41 +353,62 @@ const SuperAdminDashboard: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Platform Activity Chart */}
-            <div className="lg:col-span-2 bg-white p-8 rounded-[32px] shadow-sm border border-slate-100">
+            {/* Wellbeing Insights */}
+            <div className="lg:col-span-2 bg-white p-10 rounded-[40px] shadow-sm border border-slate-100">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-xl font-black text-slate-900">Platform Growth</h3>
-                  <p className="text-slate-400 text-sm font-medium">User registration and engagement trends</p>
+                  <h3 className="text-2xl font-black text-slate-900">Global Wellbeing Insights</h3>
+                  <p className="text-slate-500 text-sm font-medium">Aggregated stress levels across all organisations.</p>
                 </div>
-                <select className="bg-slate-50 border-none rounded-xl text-sm font-bold text-slate-600 px-4 py-2 outline-none">
-                  <option>Last 30 Days</option>
-                  <option>Last 90 Days</option>
-                </select>
+                <div className="bg-rose-50 px-4 py-2 rounded-xl flex items-center space-x-2">
+                  <Heart className="w-4 h-4 text-rose-500" />
+                  <span className="text-rose-700 font-bold text-xs">Live Monitoring</span>
+                </div>
               </div>
-              <div className="h-[350px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={[
-                    { name: 'Week 1', users: 40, checks: 240 },
-                    { name: 'Week 2', users: 75, checks: 380 },
-                    { name: 'Week 3', users: 120, checks: 520 },
-                    { name: 'Week 4', users: 185, checks: 740 },
-                  ]}>
-                    <defs>
-                      <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/>
-                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                    <Tooltip 
-                      contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
-                    />
-                    <Area type="monotone" dataKey="users" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorUsers)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+              
+              <div className="space-y-6">
+                {wellbeingInsights.length === 0 ? (
+                  <div className="py-20 text-center">
+                    <Activity className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                    <p className="text-slate-400 font-medium">Insufficient data for wellbeing trends.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {wellbeingInsights.map((insight) => (
+                      <div key={insight._id} className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <p className="font-black text-slate-900">{insight.org.name}</p>
+                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{insight.org.code}</p>
+                          </div>
+                          <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
+                            insight.avgStress > 7 ? 'bg-rose-100 text-rose-700' : 
+                            insight.avgStress > 4 ? 'bg-amber-100 text-amber-700' : 
+                            'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {insight.avgStress > 7 ? 'High Stress' : insight.avgStress > 4 ? 'Moderate' : 'Healthy'}
+                          </div>
+                        </div>
+                        <div className="flex items-end justify-between">
+                          <div className="flex-1 mr-4">
+                            <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full transition-all duration-1000 ${
+                                  insight.avgStress > 7 ? 'bg-rose-500' : 
+                                  insight.avgStress > 4 ? 'bg-amber-500' : 
+                                  'bg-emerald-500'
+                                }`}
+                                style={{ width: `${(insight.avgStress / 10) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                          <span className="text-xl font-black text-slate-900">{insight.avgStress.toFixed(1)}</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-widest">Based on {insight.count} checks</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -434,12 +523,22 @@ const SuperAdminDashboard: React.FC = () => {
                           <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500">
                             {new Date(b.createdAt).toLocaleDateString()}
                           </span>
-                          <button 
-                            onClick={() => deleteBroadcast(b._id)}
-                            className="text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </button>
+                    <button 
+                      onClick={() => {
+                        setBroadcastMessage(b.message);
+                        setEditingBroadcast(b);
+                        setShowBroadcastModal(true);
+                      }}
+                      className="text-slate-300 hover:text-indigo-500 transition-colors opacity-0 group-hover:opacity-100 mr-2"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => deleteBroadcast(b._id)}
+                      className="text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
                         </div>
                         <p className="text-xs text-slate-600 font-medium line-clamp-2">{b.message}</p>
                       </div>
@@ -484,7 +583,11 @@ const SuperAdminDashboard: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {organisations.map((org) => (
-                  <tr key={org._id} className="hover:bg-slate-50/50 transition-colors group">
+                  <tr 
+                    key={org._id} 
+                    className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                    onClick={() => setSelectedOrg(org)}
+                  >
                     <td className="px-8 py-5">
                       <div className="flex items-center">
                         <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center mr-4 group-hover:bg-indigo-100 transition-colors">
@@ -570,7 +673,11 @@ const SuperAdminDashboard: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {users.map((user) => (
-                  <tr key={user._id} className="hover:bg-slate-50/50 transition-colors group">
+                  <tr 
+                    key={user._id} 
+                    className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                    onClick={() => setSelectedUser(user)}
+                  >
                     <td className="px-8 py-5">
                       <div className="flex items-center">
                         <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mr-4 font-black text-slate-400">
@@ -627,7 +734,10 @@ const SuperAdminDashboard: React.FC = () => {
               <h2 className="text-xl font-black text-slate-900">Global Programme Registry</h2>
               <p className="text-slate-400 text-sm font-medium">Monitor and host programmes across the platform</p>
             </div>
-            <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-100 transition-all flex items-center space-x-2">
+            <button 
+              onClick={() => setShowProgrammeModal(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-100 transition-all flex items-center space-x-2"
+            >
               <Plus className="w-5 h-5" />
               <span>Host Global Programme</span>
             </button>
@@ -695,6 +805,225 @@ const SuperAdminDashboard: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Platform Logs Modal */}
+      {showLogsModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-slate-900 p-10 text-white flex justify-between items-center">
+              <div>
+                <h2 className="text-3xl font-black tracking-tight">Platform Logs</h2>
+                <p className="text-slate-400 text-sm mt-1">Real-time system events and audit trail.</p>
+              </div>
+              <button onClick={() => setShowLogsModal(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <XCircle className="w-8 h-8" />
+              </button>
+            </div>
+            <div className="p-10 max-h-[60vh] overflow-y-auto">
+              <div className="space-y-4">
+                {logs.length === 0 ? (
+                  <p className="text-center py-20 text-slate-400 italic">No system logs available.</p>
+                ) : (
+                  logs.map((log) => (
+                    <div key={log._id} className="flex items-start space-x-4 p-4 hover:bg-slate-50 rounded-2xl transition-colors border-b border-slate-50">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                        log.type === 'SUCCESS' ? 'bg-emerald-50 text-emerald-600' :
+                        log.type === 'WARNING' ? 'bg-amber-50 text-amber-600' :
+                        log.type === 'ERROR' ? 'bg-rose-50 text-rose-600' :
+                        'bg-blue-50 text-blue-600'
+                      }`}>
+                        <Activity className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <p className="font-bold text-slate-900">{log.event}</p>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {new Date(log.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-500 mt-1">{log.details}</p>
+                        <div className="flex items-center space-x-3 mt-2">
+                          {log.userId && (
+                            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
+                              User: {log.userId.name}
+                            </span>
+                          )}
+                          {log.organisationId && (
+                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                              Org: {log.organisationId.name}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Host Global Programme Modal */}
+      {showProgrammeModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-indigo-600 p-10 text-white">
+              <h2 className="text-3xl font-black tracking-tight">Host Global Programme</h2>
+              <p className="text-indigo-100 text-sm mt-2 font-medium">Create a programme accessible across the entire platform.</p>
+            </div>
+            <form onSubmit={handleCreateProgramme} className="p-10 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Programme Title</label>
+                <input 
+                  required
+                  className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-slate-700"
+                  placeholder="e.g. Mindfulness for All"
+                  value={newProgramme.title}
+                  onChange={e => setNewProgramme({...newProgramme, title: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Category</label>
+                <select 
+                  className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-slate-700"
+                  value={newProgramme.category}
+                  onChange={e => setNewProgramme({...newProgramme, category: e.target.value})}
+                >
+                  <option>Wellbeing</option>
+                  <option>Community</option>
+                  <option>Education</option>
+                  <option>Health</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Start Date</label>
+                <input 
+                  type="date"
+                  required
+                  className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-slate-700"
+                  value={newProgramme.startDate}
+                  onChange={e => setNewProgramme({...newProgramme, startDate: e.target.value})}
+                />
+              </div>
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Public Summary</label>
+                <textarea 
+                  required
+                  rows={3}
+                  className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-slate-700 resize-none"
+                  placeholder="Brief description for everyone..."
+                  value={newProgramme.publicSummary}
+                  onChange={e => setNewProgramme({...newProgramme, publicSummary: e.target.value})}
+                />
+              </div>
+              <div className="flex space-x-4 md:col-span-2 mt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setShowProgrammeModal(false)}
+                  className="flex-1 py-4 rounded-2xl font-black text-slate-400 hover:bg-slate-50 transition-all uppercase tracking-widest text-xs"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all uppercase tracking-widest text-xs"
+                >
+                  Launch Programme
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Organisation Details Modal */}
+      {selectedOrg && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-emerald-600 p-10 text-white flex justify-between items-start">
+              <div>
+                <h2 className="text-3xl font-black tracking-tight">{selectedOrg.name}</h2>
+                <p className="text-emerald-100 text-sm mt-1 font-black uppercase tracking-widest">Hub ID: {selectedOrg.code}</p>
+              </div>
+              <button onClick={() => setSelectedOrg(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <XCircle className="w-8 h-8" />
+              </button>
+            </div>
+            <div className="p-10 space-y-8">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-slate-50 p-6 rounded-3xl text-center">
+                  <p className="text-2xl font-black text-slate-900">{selectedOrg.userCount}</p>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Members</p>
+                </div>
+                <div className="bg-slate-50 p-6 rounded-3xl text-center">
+                  <p className="text-2xl font-black text-slate-900">{selectedOrg.programmeCount}</p>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Programmes</p>
+                </div>
+                <div className="bg-slate-50 p-6 rounded-3xl text-center">
+                  <p className="text-2xl font-black text-slate-900">Active</p>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Status</p>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs">Hub Details</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between py-3 border-b border-slate-50">
+                    <span className="text-slate-400 text-sm font-medium">Created On</span>
+                    <span className="text-slate-900 text-sm font-bold">{new Date(selectedOrg.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex justify-between py-3 border-b border-slate-50">
+                    <span className="text-slate-400 text-sm font-medium">Invite Code</span>
+                    <span className="text-indigo-600 text-sm font-black">{selectedOrg.code}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Profile Modal */}
+      {selectedUser && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-slate-900 p-10 text-white flex flex-col items-center text-center">
+              <div className="w-24 h-24 bg-indigo-500 rounded-[32px] flex items-center justify-center text-4xl font-black mb-6 shadow-2xl shadow-indigo-500/20">
+                {selectedUser.name.charAt(0)}
+              </div>
+              <h2 className="text-3xl font-black tracking-tight">{selectedUser.name}</h2>
+              <p className="text-slate-400 text-sm mt-1 font-medium">{selectedUser.email}</p>
+              <div className="mt-4 px-4 py-1.5 bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest">
+                {selectedUser.role.replace('_', ' ')}
+              </div>
+            </div>
+            <div className="p-10 space-y-6">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl">
+                  <div className="flex items-center space-x-3">
+                    <Building2 className="w-4 h-4 text-slate-400" />
+                    <span className="text-xs font-bold text-slate-500">Organisation</span>
+                  </div>
+                  <span className="text-xs font-black text-slate-900">{selectedUser.organisationId?.name || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl">
+                  <div className="flex items-center space-x-3">
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                    <span className="text-xs font-bold text-slate-500">Joined On</span>
+                  </div>
+                  <span className="text-xs font-black text-slate-900">{new Date(selectedUser.createdAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedUser(null)}
+                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all"
+              >
+                Close Profile
+              </button>
+            </div>
           </div>
         </div>
       )}

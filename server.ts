@@ -10,8 +10,18 @@ import Organisation from './backend/models/Organisation.ts';
 import Programme from './backend/models/Programme.ts';
 import StressRecord from './backend/models/StressRecord.ts';
 import Broadcast from './backend/models/Broadcast.ts';
+import SystemLog from './backend/models/SystemLog.ts';
 import { StressService } from './backend/services/StressService.ts';
 import { authMiddleware, tenantMiddleware, roleMiddleware } from './backend/middleware/auth.ts';
+
+// Helper for System Logging
+const logEvent = async (event: string, details: string, type: 'INFO' | 'WARNING' | 'ERROR' | 'SUCCESS' = 'INFO', organisationId?: any, userId?: any) => {
+  try {
+    await SystemLog.create({ event, details, type, organisationId, userId });
+  } catch (err) {
+    console.error('Logging failed:', err);
+  }
+};
 
 async function startServer() {
   const app = express();
@@ -114,7 +124,7 @@ async function startServer() {
         organisationId: targetOrganisationId || req.user.organisationId,
         coordinatorId: req.user.id
       });
-      
+      await logEvent('PROGRAMME_CREATED', `New programme: ${title}`, 'SUCCESS', programme.organisationId, req.user.id);
       res.status(201).json({ success: true, data: programme });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
@@ -128,6 +138,7 @@ async function startServer() {
       if (existing) return res.status(400).json({ success: false, message: 'Organisation code already exists' });
       
       const organisation = await Organisation.create({ name, code });
+      await logEvent('ORG_CREATED', `New organisation: ${name} (${code})`, 'SUCCESS', organisation._id);
       res.status(201).json({ success: true, data: organisation });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
@@ -158,7 +169,55 @@ async function startServer() {
         type: type || 'ANNOUNCEMENT',
         authorId: req.user.id
       });
+      await logEvent('BROADCAST_CREATED', `New global broadcast: ${message.substring(0, 30)}...`, 'SUCCESS', null, req.user.id);
       res.json({ success: true, data: broadcast });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.put("/api/admin/broadcasts/:id", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req: any, res) => {
+    try {
+      const { message, type, isActive } = req.body;
+      const broadcast = await Broadcast.findByIdAndUpdate(req.params.id, { message, type, isActive }, { new: true });
+      await logEvent('BROADCAST_UPDATED', `Broadcast updated: ${message.substring(0, 30)}...`, 'INFO', null, req.user.id);
+      res.json({ success: true, data: broadcast });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.get("/api/admin/logs", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      const logs = await SystemLog.find().sort({ createdAt: -1 }).limit(100).populate('userId', 'name email').populate('organisationId', 'name');
+      res.json({ success: true, data: logs });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.get("/api/admin/wellbeing-insights", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      // Aggregated stress data
+      const insights = await StressRecord.aggregate([
+        {
+          $group: {
+            _id: "$organisationId",
+            avgStress: { $avg: "$score" },
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $lookup: {
+            from: "organisations",
+            localField: "_id",
+            foreignField: "_id",
+            as: "org"
+          }
+        },
+        { $unwind: "$org" }
+      ]);
+      res.json({ success: true, data: insights });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }
@@ -240,7 +299,7 @@ async function startServer() {
         role,
         organisationId: organisation._id
       });
-
+      await logEvent('USER_REGISTERED', `${name} joined ${organisation.name}`, 'SUCCESS', organisation._id, user._id);
       res.status(201).json({ success: true, message: `Registration successful as ${role.replace('_', ' ')}. Please login.` });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
