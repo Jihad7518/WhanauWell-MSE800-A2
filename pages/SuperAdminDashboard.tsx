@@ -47,6 +47,9 @@ const SuperAdminDashboard: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -84,6 +87,51 @@ const SuperAdminDashboard: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/api/admin/broadcast', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
+        },
+        body: JSON.stringify({ message: broadcastMessage, type: 'ANNOUNCEMENT' })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Broadcast sent successfully!');
+        setBroadcastMessage('');
+        setShowBroadcastModal(false);
+      }
+    } catch (err) {
+      setError('Failed to send broadcast');
+    }
+  };
+
+  const downloadAuditReport = async () => {
+    try {
+      const response = await fetch('/api/admin/audit-report', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+      });
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `whanauwell_audit_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Failed to generate report');
+    }
+  };
+
+  const toggleMaintenance = () => {
+    setIsMaintenanceMode(!isMaintenanceMode);
+    setSuccess(`Maintenance mode ${!isMaintenanceMode ? 'enabled' : 'disabled'}`);
+  };
 
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -256,15 +304,24 @@ const SuperAdminDashboard: React.FC = () => {
                 <div className="relative z-10">
                   <h3 className="text-xl font-bold mb-4">Master Controls</h3>
                   <div className="space-y-3">
-                    <button className="w-full flex items-center justify-between p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all group">
+                    <button 
+                      onClick={() => setShowBroadcastModal(true)}
+                      className="w-full flex items-center justify-between p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all group"
+                    >
                       <span className="font-bold text-sm">Broadcast Announcement</span>
                       <ChevronRight className="w-4 h-4 text-white/40 group-hover:translate-x-1 transition-transform" />
                     </button>
-                    <button className="w-full flex items-center justify-between p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all group">
-                      <span className="font-bold text-sm">System Maintenance</span>
-                      <ChevronRight className="w-4 h-4 text-white/40 group-hover:translate-x-1 transition-transform" />
+                    <button 
+                      onClick={toggleMaintenance}
+                      className={`w-full flex items-center justify-between p-4 ${isMaintenanceMode ? 'bg-rose-500/20 text-rose-200' : 'bg-white/10 text-white'} hover:bg-white/20 rounded-2xl transition-all group`}
+                    >
+                      <span className="font-bold text-sm">{isMaintenanceMode ? 'Disable Maintenance' : 'System Maintenance'}</span>
+                      <div className={`w-2 h-2 rounded-full ${isMaintenanceMode ? 'bg-rose-500 animate-pulse' : 'bg-white/40'}`}></div>
                     </button>
-                    <button className="w-full flex items-center justify-between p-4 bg-indigo-500 hover:bg-indigo-400 rounded-2xl transition-all group">
+                    <button 
+                      onClick={downloadAuditReport}
+                      className="w-full flex items-center justify-between p-4 bg-indigo-500 hover:bg-indigo-400 rounded-2xl transition-all group"
+                    >
                       <span className="font-bold text-sm">Generate Audit Report</span>
                       <ArrowUpRight className="w-4 h-4 text-white/40" />
                     </button>
@@ -272,6 +329,46 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full -mr-10 -mt-10 blur-2xl"></div>
               </div>
+
+              {/* Broadcast Modal */}
+              {showBroadcastModal && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                  <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+                    <div className="bg-slate-900 p-10 text-white">
+                      <h2 className="text-2xl font-black">Global Broadcast</h2>
+                      <p className="text-slate-400 text-sm mt-1">Send a message to every active user on the platform.</p>
+                    </div>
+                    <form onSubmit={handleBroadcast} className="p-10 space-y-6">
+                      <div className="space-y-3">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Your Message</label>
+                        <textarea 
+                          required
+                          rows={4}
+                          className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-slate-700 resize-none"
+                          placeholder="Type your announcement here..."
+                          value={broadcastMessage}
+                          onChange={e => setBroadcastMessage(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex space-x-4">
+                        <button 
+                          type="button" 
+                          onClick={() => setShowBroadcastModal(false)}
+                          className="flex-1 py-4 rounded-2xl font-black text-slate-400 hover:bg-slate-50 transition-all uppercase tracking-widest text-xs"
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          type="submit"
+                          className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all uppercase tracking-widest text-xs"
+                        >
+                          Send Now
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
 
               <div className="bg-white p-8 rounded-[32px] shadow-sm border border-slate-100">
                 <h3 className="font-black text-slate-900 mb-6">Recent Hubs</h3>

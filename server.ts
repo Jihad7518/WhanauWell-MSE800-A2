@@ -149,6 +149,34 @@ async function startServer() {
     }
   });
 
+  app.post("/api/admin/broadcast", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      const { message, type } = req.body;
+      // In a real app, this would push to a notifications collection or WebSocket
+      console.log(`[GLOBAL BROADCAST] ${type}: ${message}`);
+      res.json({ success: true, message: 'Broadcast sent successfully to all active sessions.' });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.get("/api/admin/audit-report", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      const orgs = await Organisation.find();
+      const users = await User.find().select('name email role createdAt');
+      
+      let csv = 'Type,Name,Identifier,Created At\n';
+      orgs.forEach(o => csv += `Organisation,${o.name},${o.code},${o.createdAt}\n`);
+      users.forEach(u => csv += `User,${u.name},${u.email},${u.createdAt}\n`);
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=whanauwell_audit_report.csv');
+      res.status(200).send(csv);
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
   // Auth Routes
   app.post("/api/auth/register", async (req, res) => {
     const { name, email, password, orgCode, adminCode } = req.body;
