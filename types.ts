@@ -74,6 +74,16 @@ export interface MembershipApplication {
   createdAt: string;
 }
 
+export interface OrganisationApplication {
+  _id: string;
+  name: string;
+  contactName: string;
+  email: string;
+  reason?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt: string;
+}
+
 export interface AuthState {
   user: User | null;
   organisation: Organisation | null;

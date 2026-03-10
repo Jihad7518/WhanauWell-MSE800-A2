@@ -24,10 +24,11 @@ const PublicProgrammeDetails: React.FC<PublicProgrammeDetailsProps> = ({ user })
   useEffect(() => {
     const fetchDetails = async () => {
       try {
-        // Try authenticated endpoint first if user is logged in
-        const endpoint = user ? `/api/programmes/${id}` : `/api/public/programmes/${id}`;
+        const token = localStorage.getItem('whanauwell_token');
+        // Try authenticated endpoint first if user is logged in and token exists
+        const endpoint = (user && token) ? `/api/programmes/${id}` : `/api/public/programmes/${id}`;
         const response = await fetch(endpoint, {
-          headers: user ? { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` } : {}
+          headers: (user && token) ? { 'Authorization': `Bearer ${token}` } : {}
         });
         const data = await response.json();
         if (data.success) {

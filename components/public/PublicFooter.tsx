@@ -22,6 +22,7 @@ const PublicFooter: React.FC = () => {
           <ul className="space-y-4 text-sm text-slate-500">
             <li><Link to="/" className="hover:text-indigo-600 transition-colors">Home</Link></li>
             <li><Link to="/programmes" className="hover:text-indigo-600 transition-colors">Programmes</Link></li>
+            <li><Link to="/host-hub" className="hover:text-indigo-600 transition-colors font-bold text-indigo-600">Host a Hub</Link></li>
             <li><Link to="/about" className="hover:text-indigo-600 transition-colors">About Us</Link></li>
             <li><Link to="/contact" className="hover:text-indigo-600 transition-colors">Contact</Link></li>
           </ul>

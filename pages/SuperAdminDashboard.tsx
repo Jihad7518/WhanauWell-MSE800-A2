@@ -41,10 +41,11 @@ import {
 } from 'recharts';
 
 const SuperAdminDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'organisations' | 'users' | 'programmes' | 'tickets' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'organisations' | 'users' | 'programmes' | 'tickets' | 'settings' | 'org-applications'>('overview');
   const [organisations, setOrganisations] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [programmes, setProgrammes] = useState<any[]>([]);
+  const [orgApplications, setOrgApplications] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -82,7 +83,7 @@ const SuperAdminDashboard: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [orgsRes, statsRes, usersRes, progsRes, broadcastsRes, logsRes, insightsRes, ticketsRes, settingsRes, healthRes] = await Promise.all([
+      const [orgsRes, statsRes, usersRes, progsRes, broadcastsRes, logsRes, insightsRes, ticketsRes, settingsRes, healthRes, orgAppsRes] = await Promise.all([
         fetch('/api/admin/organisations', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
         }),
@@ -112,6 +113,9 @@ const SuperAdminDashboard: React.FC = () => {
         }),
         fetch('/api/admin/health', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+        }),
+        fetch('/api/admin/org-applications', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
         })
       ]);
       
@@ -125,6 +129,7 @@ const SuperAdminDashboard: React.FC = () => {
       const ticketsData = await ticketsRes.json();
       const settingsData = await settingsRes.json();
       const healthData = await healthRes.json();
+      const orgAppsData = await orgAppsRes.json();
       
       if (orgsData.success) setOrganisations(orgsData.data);
       if (statsData.success) setStats(statsData.data);
@@ -136,6 +141,7 @@ const SuperAdminDashboard: React.FC = () => {
       if (ticketsData.success) setTickets(ticketsData.data);
       if (settingsData.success) setPlatformSettings(settingsData.data);
       if (healthData.success) setSystemHealth(healthData.data);
+      if (orgAppsData.success) setOrgApplications(orgAppsData.data);
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -166,6 +172,43 @@ const SuperAdminDashboard: React.FC = () => {
       }
     } catch (err) {
       setError('Failed to update ticket');
+    }
+  };
+
+  const handleUpdateOrgApplication = async (id: string, status: string) => {
+    try {
+      const response = await fetch(`/api/admin/org-applications/${id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
+        },
+        body: JSON.stringify({ status })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Application updated');
+        fetchData();
+      }
+    } catch (err) {
+      setError('Failed to update application');
+    }
+  };
+
+  const handleSeedData = async () => {
+    if (!window.confirm('This will seed sample organisations and programmes. Continue?')) return;
+    try {
+      const response = await fetch('/api/admin/seed-data', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Sample data seeded successfully!');
+        fetchData();
+      }
+    } catch (err) {
+      setError('Failed to seed data');
     }
   };
 
@@ -391,6 +434,7 @@ const SuperAdminDashboard: React.FC = () => {
         {[
           { id: 'overview', label: 'Overview', icon: LayoutDashboard },
           { id: 'organisations', label: 'Organisations', icon: Building2 },
+          { id: 'org-applications', label: 'Hub Requests', icon: Mail },
           { id: 'users', label: 'Global Users', icon: Users },
           { id: 'programmes', label: 'Global Programmes', icon: Calendar },
           { id: 'tickets', label: 'Support Desk', icon: Megaphone },
@@ -591,6 +635,13 @@ const SuperAdminDashboard: React.FC = () => {
                       <div className={`w-2 h-2 rounded-full ${isMaintenanceMode ? 'bg-rose-500 animate-pulse' : 'bg-white/40'}`}></div>
                     </button>
                     <button 
+                      onClick={handleSeedData}
+                      className="w-full flex items-center justify-between p-4 bg-emerald-500 hover:bg-emerald-400 rounded-2xl transition-all group"
+                    >
+                      <span className="font-bold text-sm">Seed Sample Data</span>
+                      <Plus className="w-4 h-4 text-white/40" />
+                    </button>
+                    <button 
                       onClick={downloadAuditReport}
                       className="w-full flex items-center justify-between p-4 bg-indigo-500 hover:bg-indigo-400 rounded-2xl transition-all group"
                     >
@@ -705,6 +756,79 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hub Requests Tab */}
+      {activeTab === 'org-applications' && (
+        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="p-8 border-b border-slate-50">
+            <h2 className="text-xl font-black text-slate-900">Hub Onboarding Requests</h2>
+            <p className="text-slate-400 text-sm font-medium">Pending applications from organisations wanting to join the platform.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/50">
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Organisation</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Contact</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Reason</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {orgApplications.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-8 py-20 text-center text-slate-400 italic">No onboarding requests found.</td>
+                  </tr>
+                ) : (
+                  orgApplications.map((app) => (
+                    <tr key={app._id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-8 py-5">
+                        <span className="font-bold text-slate-900 block">{app.name}</span>
+                        <span className="text-xs text-slate-400">{new Date(app.createdAt).toLocaleDateString()}</span>
+                      </td>
+                      <td className="px-8 py-5">
+                        <span className="font-bold text-slate-700 block">{app.contactName}</span>
+                        <span className="text-xs text-slate-400">{app.email}</span>
+                      </td>
+                      <td className="px-8 py-5">
+                        <p className="text-xs text-slate-600 max-w-xs line-clamp-2">{app.reason}</p>
+                      </td>
+                      <td className="px-8 py-5">
+                        <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase ${
+                          app.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                          app.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                          'bg-rose-100 text-rose-700'
+                        }`}>
+                          {app.status}
+                        </span>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="flex items-center space-x-2">
+                          <button 
+                            onClick={() => handleUpdateOrgApplication(app._id, 'APPROVED')}
+                            className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+                            title="Approve"
+                          >
+                            <CheckCircle2 className="w-5 h-5" />
+                          </button>
+                          <button 
+                            onClick={() => handleUpdateOrgApplication(app._id, 'REJECTED')}
+                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                            title="Reject"
+                          >
+                            <XCircle className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -1303,11 +1427,11 @@ const SuperAdminDashboard: React.FC = () => {
                 <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl">
                   <div>
                     <p className="font-black text-slate-900">Allow Public Registration</p>
-                    <p className="text-xs text-slate-400 font-medium">Allow users to sign up without an invite code.</p>
+                    <p className="text-xs text-slate-400 font-medium">Allow users to sign up without an invite code. (If off, users must apply for access)</p>
                   </div>
                   <button 
                     type="button"
-                    onClick={() => setPlatformSettings({...platformSettings, allowPublicRegistration: !platformSettings.allowPublicRegistration})}
+                    onClick={() => setPlatformSettings({...platformSettings, allowPublicRegistration: !platformSettings?.allowPublicRegistration})}
                     className={`w-14 h-8 rounded-full transition-all relative ${platformSettings?.allowPublicRegistration ? 'bg-indigo-600' : 'bg-slate-200'}`}
                   >
                     <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${platformSettings?.allowPublicRegistration ? 'left-7' : 'left-1'}`} />
@@ -1317,11 +1441,11 @@ const SuperAdminDashboard: React.FC = () => {
                 <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl">
                   <div>
                     <p className="font-black text-slate-900">Maintenance Mode</p>
-                    <p className="text-xs text-slate-400 font-medium">Restrict access to the platform for maintenance.</p>
+                    <p className="text-xs text-slate-400 font-medium">Restrict access to the platform for maintenance. (Only Super Admins can log in)</p>
                   </div>
                   <button 
                     type="button"
-                    onClick={() => setPlatformSettings({...platformSettings, maintenanceMode: !platformSettings.maintenanceMode})}
+                    onClick={() => setPlatformSettings({...platformSettings, maintenanceMode: !platformSettings?.maintenanceMode})}
                     className={`w-14 h-8 rounded-full transition-all relative ${platformSettings?.maintenanceMode ? 'bg-rose-600' : 'bg-slate-200'}`}
                   >
                     <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${platformSettings?.maintenanceMode ? 'left-7' : 'left-1'}`} />
