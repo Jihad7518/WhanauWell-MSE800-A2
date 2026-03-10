@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Programme, User } from '../../types';
-import { MapPin, Clock, Users, ArrowLeft, ShieldCheck, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { MapPin, Clock, Users, ArrowLeft, ShieldCheck, CheckCircle2, AlertCircle, Loader2, XCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 interface PublicProgrammeDetailsProps {
@@ -17,6 +17,9 @@ const PublicProgrammeDetails: React.FC<PublicProgrammeDetailsProps> = ({ user })
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [applyForm, setApplyForm] = useState({ name: '', email: '', message: '' });
+  const [applying, setApplying] = useState(false);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -71,6 +74,32 @@ const PublicProgrammeDetails: React.FC<PublicProgrammeDetailsProps> = ({ user })
     }
   };
 
+  const handleApply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setApplying(true);
+    try {
+      const response = await fetch('/api/public/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...applyForm,
+          organisationId: programme?.organisationId
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Application submitted! The Hub Admin will review your request and send an invite code to your email.');
+        setShowApplyModal(false);
+      } else {
+        setError(data.message || 'Failed to submit application');
+      }
+    } catch (err) {
+      setError('Connection error');
+    } finally {
+      setApplying(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-40">
@@ -108,7 +137,7 @@ const PublicProgrammeDetails: React.FC<PublicProgrammeDetailsProps> = ({ user })
           <div className="space-y-6">
             <div className="relative h-80 rounded-3xl overflow-hidden shadow-2xl">
               <img 
-                src={`https://picsum.photos/seed/${programme.id}/1200/800`} 
+                src={`https://picsum.photos/seed/${programme._id}/1200/800`} 
                 alt={programme.title} 
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
@@ -150,9 +179,17 @@ const PublicProgrammeDetails: React.FC<PublicProgrammeDetailsProps> = ({ user })
                 <Users className="w-10 h-10 text-slate-400 mx-auto" />
                 <h3 className="text-xl font-bold text-slate-800">Want to see more?</h3>
                 <p className="text-slate-500">Log in as a member to access full programme details, resources, and meeting links.</p>
-                <Link to="/auth/login" className="inline-block bg-white border border-slate-200 px-6 py-2 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-all">
-                  Log In to Access
-                </Link>
+                <div className="flex flex-col space-y-3">
+                  <Link to="/auth/login" className="w-full bg-white border border-slate-200 px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition-all">
+                    Log In to Access
+                  </Link>
+                  <button 
+                    onClick={() => setShowApplyModal(true)}
+                    className="w-full bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg"
+                  >
+                    Apply for Membership
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -221,6 +258,61 @@ const PublicProgrammeDetails: React.FC<PublicProgrammeDetailsProps> = ({ user })
           </div>
         </div>
       </div>
+      {/* Membership Application Modal */}
+      {showApplyModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-slate-900 p-8 text-white flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-black tracking-tight">Apply to Join</h2>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Request an Invite Code</p>
+              </div>
+              <button onClick={() => setShowApplyModal(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <form onSubmit={handleApply} className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Full Name</label>
+                <input 
+                  required
+                  className="w-full px-5 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium"
+                  placeholder="John Doe"
+                  value={applyForm.name}
+                  onChange={e => setApplyForm({...applyForm, name: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Email Address</label>
+                <input 
+                  required
+                  type="email"
+                  className="w-full px-5 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium"
+                  placeholder="john@example.com"
+                  value={applyForm.email}
+                  onChange={e => setApplyForm({...applyForm, email: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Why do you want to join?</label>
+                <textarea 
+                  className="w-full px-5 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium min-h-[100px]"
+                  placeholder="Tell us a bit about yourself..."
+                  value={applyForm.message}
+                  onChange={e => setApplyForm({...applyForm, message: e.target.value})}
+                />
+              </div>
+              <button 
+                type="submit"
+                disabled={applying}
+                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all flex items-center justify-center"
+              >
+                {applying ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Submit Application'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

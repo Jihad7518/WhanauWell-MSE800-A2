@@ -11,6 +11,9 @@ import Programme from './backend/models/Programme.ts';
 import StressRecord from './backend/models/StressRecord.ts';
 import Broadcast from './backend/models/Broadcast.ts';
 import SystemLog from './backend/models/SystemLog.ts';
+import SupportTicket from './backend/models/SupportTicket.ts';
+import GlobalSettings from './backend/models/GlobalSettings.ts';
+import MembershipApplication from './backend/models/MembershipApplication.ts';
 import { StressService } from './backend/services/StressService.ts';
 import { authMiddleware, tenantMiddleware, roleMiddleware } from './backend/middleware/auth.ts';
 
@@ -68,6 +71,78 @@ async function startServer() {
   // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", message: "WhānauWell API is running" });
+  });
+
+  // Public Routes
+  app.get("/api/public/programmes", async (req, res) => {
+    try {
+      const programmes = await Programme.find().select('-memberDetails').populate('organisationId', 'name');
+      res.json({ success: true, data: programmes });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.get("/api/public/programmes/:id", async (req, res) => {
+    try {
+      const programme = await Programme.findById(req.params.id).populate('organisationId', 'name');
+      if (!programme) return res.status(404).json({ success: false, message: 'Programme not found' });
+      
+      // Strip member-only details for public view
+      const publicData = programme.toObject();
+      delete publicData.memberDetails;
+      
+      res.json({ success: true, data: publicData });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.post("/api/public/apply", async (req, res) => {
+    try {
+      const { name, email, organisationId, message } = req.body;
+      const application = await MembershipApplication.create({
+        name,
+        email,
+        organisationId,
+        message,
+        status: 'PENDING'
+      });
+      await logEvent('MEMBERSHIP_APPLIED', `New membership application from ${name} (${email})`, 'INFO', organisationId);
+      res.json({ success: true, data: application });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  // Hub Admin Application Management
+  app.get("/api/admin/applications", authMiddleware, roleMiddleware(['ORG_ADMIN']), async (req: any, res) => {
+    try {
+      const applications = await MembershipApplication.find({ organisationId: req.user.organisationId }).sort({ createdAt: -1 });
+      res.json({ success: true, data: applications });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.put("/api/admin/applications/:id/approve", authMiddleware, roleMiddleware(['ORG_ADMIN']), async (req: any, res) => {
+    try {
+      const application = await MembershipApplication.findById(req.params.id);
+      if (!application) return res.status(404).json({ success: false, message: 'Application not found' });
+      
+      const organisation = await Organisation.findById(application.organisationId);
+      if (!organisation) return res.status(404).json({ success: false, message: 'Organisation not found' });
+
+      application.status = 'APPROVED';
+      application.inviteCodeSent = organisation.code;
+      await application.save();
+
+      await logEvent('MEMBERSHIP_APPROVED', `Membership application for ${application.name} approved`, 'SUCCESS', organisation._id, req.user.id);
+      
+      res.json({ success: true, message: 'Application approved and code assigned', code: organisation.code });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
   });
 
   // Super Admin Routes
@@ -196,6 +271,16 @@ async function startServer() {
     }
   });
 
+  app.delete("/api/admin/logs", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req: any, res) => {
+    try {
+      await SystemLog.deleteMany({});
+      await logEvent('LOGS_CLEARED', 'All system logs were cleared by Super Admin', 'WARNING', null, req.user.id);
+      res.json({ success: true, message: 'Logs cleared' });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
   app.get("/api/admin/wellbeing-insights", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
     try {
       // Aggregated stress data
@@ -204,7 +289,9 @@ async function startServer() {
           $group: {
             _id: "$organisationId",
             avgStress: { $avg: "$score" },
-            count: { $sum: 1 }
+            count: { $sum: 1 },
+            maxStress: { $max: "$score" },
+            minStress: { $min: "$score" }
           }
         },
         {
@@ -218,6 +305,67 @@ async function startServer() {
         { $unwind: "$org" }
       ]);
       res.json({ success: true, data: insights });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  // Support Ticket Routes
+  app.get("/api/admin/tickets", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      const tickets = await SupportTicket.find().sort({ createdAt: -1 }).populate('userId', 'name email').populate('organisationId', 'name');
+      res.json({ success: true, data: tickets });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.put("/api/admin/tickets/:id", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req: any, res) => {
+    try {
+      const { status, priority } = req.body;
+      const ticket = await SupportTicket.findByIdAndUpdate(req.params.id, { status, priority }, { new: true });
+      await logEvent('TICKET_UPDATED', `Ticket ${req.params.id} updated to ${status}`, 'INFO', null, req.user.id);
+      res.json({ success: true, data: ticket });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  // Global Settings Routes
+  app.get("/api/admin/settings", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      let settings = await GlobalSettings.findOne();
+      if (!settings) settings = await GlobalSettings.create({});
+      res.json({ success: true, data: settings });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.put("/api/admin/settings", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req: any, res) => {
+    try {
+      const { platformName, maintenanceMode, allowPublicRegistration, defaultStressCheckInterval } = req.body;
+      const settings = await GlobalSettings.findOneAndUpdate({}, { platformName, maintenanceMode, allowPublicRegistration, defaultStressCheckInterval }, { new: true, upsert: true });
+      await logEvent('SETTINGS_UPDATED', `Global platform settings updated`, 'WARNING', null, req.user.id);
+      res.json({ success: true, data: settings });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  // System Health Simulation
+  app.get("/api/admin/health", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      // Simulated health metrics
+      const health = {
+        cpu: Math.floor(Math.random() * 40) + 10, // 10-50%
+        memory: Math.floor(Math.random() * 30) + 20, // 20-50%
+        uptime: process.uptime(),
+        database: 'Connected',
+        apiLatency: Math.floor(Math.random() * 100) + 50, // 50-150ms
+        activeConnections: Math.floor(Math.random() * 50) + 10
+      };
+      res.json({ success: true, data: health });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }

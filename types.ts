@@ -22,6 +22,7 @@ export interface Organisation {
 
 export interface Programme {
   id: string;
+  _id?: string;
   title: string;
   publicSummary: string;
   memberDetails: string;
@@ -60,6 +61,17 @@ export interface StressResult {
   explanation: string;
   recommendations: string[];
   timestamp: string;
+}
+
+export interface MembershipApplication {
+  id: string;
+  name: string;
+  email: string;
+  organisationId: string;
+  message?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  inviteCodeSent?: string;
+  createdAt: string;
 }
 
 export interface AuthState {
