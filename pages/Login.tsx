@@ -28,6 +28,20 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [showAdminField, setShowAdminField] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [allowPublic, setAllowPublic] = useState(true);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/public/settings');
+        const data = await res.json();
+        if (data.success) {
+          setAllowPublic(data.data.allowPublicRegistration);
+        }
+      } catch (e) {}
+    };
+    fetchSettings();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,18 +144,22 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1 flex justify-between">
               Organisation Invite Code
-              <span className="text-[10px] text-indigo-500 font-bold uppercase">Required</span>
+              <span className={`text-[10px] font-bold uppercase ${allowPublic ? 'text-slate-400' : 'text-indigo-500'}`}>
+                {allowPublic ? 'Optional' : 'Required'}
+              </span>
             </label>
             <input
               type="text"
-              required
+              required={!allowPublic}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
               placeholder="e.g. WHANAU-01"
               value={orgCode}
               onChange={(e) => setOrgCode(e.target.value)}
             />
             <p className="text-[10px] text-slate-400 mt-1 italic">
-              Ask your coordinator for your community's unique code. (e.g. WHANAU-01)
+              {allowPublic 
+                ? "Leave blank to join the global community, or enter your hub's code."
+                : "Ask your coordinator for your community's unique code."}
             </p>
           </div>
 

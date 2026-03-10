@@ -31,26 +31,48 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [stats, setStats] = useState<any>(null);
+  const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/dashboard/stats', {
+        const statsRes = await fetch('/api/dashboard/stats', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
         });
-        const data = await response.json();
-        if (data.success) {
-          setStats(data.data);
+        const statsData = await statsRes.json();
+        if (statsData.success) setStats(statsData.data);
+
+        if (user.role === 'ORG_ADMIN') {
+          const appsRes = await fetch('/api/admin/applications', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+          });
+          const appsData = await appsRes.json();
+          if (appsData.success) setApplications(appsData.data);
         }
       } catch (error) {
-        console.error('Fetch stats error:', error);
+        console.error('Fetch data error:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchStats();
-  }, []);
+    fetchData();
+  }, [user.role]);
+
+  const handleApproveApplication = async (appId: string) => {
+    try {
+      const response = await fetch(`/api/admin/applications/${appId}/approve`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setApplications(applications.map(app => app._id === appId ? { ...app, status: 'APPROVED', inviteCodeSent: data.code } : app));
+      }
+    } catch (err) {
+      console.error('Approval error:', err);
+    }
+  };
 
   if (loading) {
     return (
@@ -224,6 +246,56 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </div>
         </div>
       </div>
+
+      {user.role === 'ORG_ADMIN' && applications.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-indigo-50/30">
+            <h2 className="font-bold text-slate-900 flex items-center">
+              <Users className="w-5 h-5 mr-2 text-indigo-500" />
+              Membership Applications
+              <span className="ml-2 px-2 py-0.5 bg-indigo-600 text-white text-[10px] rounded-full">
+                {applications.filter(a => a.status === 'PENDING').length} New
+              </span>
+            </h2>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {applications.map((app) => (
+              <div key={app._id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 font-bold">
+                    {app.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900">{app.name}</p>
+                    <p className="text-sm text-slate-500">{app.email}</p>
+                    {app.message && <p className="text-xs text-slate-400 italic mt-1">"{app.message}"</p>}
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  {app.status === 'PENDING' ? (
+                    <>
+                      <button 
+                        onClick={() => handleApproveApplication(app._id)}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                      >
+                        Approve & Send Code
+                      </button>
+                      <button className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all">
+                        Decline
+                      </button>
+                    </>
+                  ) : (
+                    <div className="flex items-center text-emerald-600 text-xs font-bold bg-emerald-50 px-3 py-1.5 rounded-lg">
+                      <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                      Approved (Code: {app.inviteCodeSent})
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">

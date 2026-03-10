@@ -41,10 +41,11 @@ import {
 } from 'recharts';
 
 const SuperAdminDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'organisations' | 'users' | 'programmes'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'organisations' | 'users' | 'programmes' | 'tickets' | 'settings' | 'org-applications'>('overview');
   const [organisations, setOrganisations] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [programmes, setProgrammes] = useState<any[]>([]);
+  const [orgApplications, setOrgApplications] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -58,11 +59,17 @@ const SuperAdminDashboard: React.FC = () => {
   const [broadcastHistory, setBroadcastHistory] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [wellbeingInsights, setWellbeingInsights] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [platformSettings, setPlatformSettings] = useState<any>(null);
+  const [systemHealth, setSystemHealth] = useState<any>(null);
+  
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [showProgrammeModal, setShowProgrammeModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [editingBroadcast, setEditingBroadcast] = useState<any>(null);
   const [selectedOrg, setSelectedOrg] = useState<any>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
 
   const [newProgramme, setNewProgramme] = useState({
     title: '',
@@ -76,7 +83,7 @@ const SuperAdminDashboard: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      const [orgsRes, statsRes, usersRes, progsRes, broadcastsRes, logsRes, insightsRes] = await Promise.all([
+      const [orgsRes, statsRes, usersRes, progsRes, broadcastsRes, logsRes, insightsRes, ticketsRes, settingsRes, healthRes, orgAppsRes] = await Promise.all([
         fetch('/api/admin/organisations', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
         }),
@@ -97,6 +104,18 @@ const SuperAdminDashboard: React.FC = () => {
         }),
         fetch('/api/admin/wellbeing-insights', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+        }),
+        fetch('/api/admin/tickets', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+        }),
+        fetch('/api/admin/settings', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+        }),
+        fetch('/api/admin/health', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+        }),
+        fetch('/api/admin/org-applications', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
         })
       ]);
       
@@ -107,6 +126,10 @@ const SuperAdminDashboard: React.FC = () => {
       const broadcastsData = await broadcastsRes.json();
       const logsData = await logsRes.json();
       const insightsData = await insightsRes.json();
+      const ticketsData = await ticketsRes.json();
+      const settingsData = await settingsRes.json();
+      const healthData = await healthRes.json();
+      const orgAppsData = await orgAppsRes.json();
       
       if (orgsData.success) setOrganisations(orgsData.data);
       if (statsData.success) setStats(statsData.data);
@@ -115,6 +138,10 @@ const SuperAdminDashboard: React.FC = () => {
       if (broadcastsData.success) setBroadcastHistory(broadcastsData.data);
       if (logsData.success) setLogs(logsData.data);
       if (insightsData.success) setWellbeingInsights(insightsData.data);
+      if (ticketsData.success) setTickets(ticketsData.data);
+      if (settingsData.success) setPlatformSettings(settingsData.data);
+      if (healthData.success) setSystemHealth(healthData.data);
+      if (orgAppsData.success) setOrgApplications(orgAppsData.data);
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -124,7 +151,105 @@ const SuperAdminDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(fetchData, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
   }, []);
+
+  const handleUpdateTicket = async (id: string, status: string) => {
+    try {
+      const response = await fetch(`/api/admin/tickets/${id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
+        },
+        body: JSON.stringify({ status })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Ticket updated');
+        fetchData();
+      }
+    } catch (err) {
+      setError('Failed to update ticket');
+    }
+  };
+
+  const handleUpdateOrgApplication = async (id: string, status: string) => {
+    try {
+      const response = await fetch(`/api/admin/org-applications/${id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
+        },
+        body: JSON.stringify({ status })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Application updated');
+        fetchData();
+      }
+    } catch (err) {
+      setError('Failed to update application');
+    }
+  };
+
+  const handleSeedData = async () => {
+    if (!window.confirm('This will seed sample organisations and programmes. Continue?')) return;
+    try {
+      const response = await fetch('/api/admin/seed-data', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Sample data seeded successfully!');
+        fetchData();
+      }
+    } catch (err) {
+      setError('Failed to seed data');
+    }
+  };
+
+  const handleUpdateSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
+        },
+        body: JSON.stringify(platformSettings)
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Settings saved');
+        setShowSettingsModal(false);
+        fetchData();
+      }
+    } catch (err) {
+      setError('Failed to save settings');
+    }
+  };
+
+  const handleClearLogs = async () => {
+    if (!window.confirm('Are you sure you want to clear all system logs? This cannot be undone.')) return;
+    try {
+      const response = await fetch('/api/admin/logs', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Logs cleared');
+        fetchData();
+      }
+    } catch (err) {
+      setError('Failed to clear logs');
+    }
+  };
 
   const handleBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -309,8 +434,11 @@ const SuperAdminDashboard: React.FC = () => {
         {[
           { id: 'overview', label: 'Overview', icon: LayoutDashboard },
           { id: 'organisations', label: 'Organisations', icon: Building2 },
+          { id: 'org-applications', label: 'Hub Requests', icon: Mail },
           { id: 'users', label: 'Global Users', icon: Users },
           { id: 'programmes', label: 'Global Programmes', icon: Calendar },
+          { id: 'tickets', label: 'Support Desk', icon: Megaphone },
+          { id: 'settings', label: 'Platform Settings', icon: ShieldCheck },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -353,7 +481,81 @@ const SuperAdminDashboard: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Wellbeing Insights */}
+            {/* System Health Widget */}
+            <div className="bg-slate-900 rounded-[32px] p-8 text-white relative overflow-hidden">
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold">System Health</h3>
+                  <Activity className="w-5 h-5 text-emerald-400 animate-pulse" />
+                </div>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 text-sm">CPU Usage</span>
+                    <span className="font-mono font-bold">{systemHealth?.cpu || 0}%</span>
+                  </div>
+                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${systemHealth?.cpu || 0}%` }} />
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 text-sm">Memory</span>
+                    <span className="font-mono font-bold">{systemHealth?.memory || 0}%</span>
+                  </div>
+                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${systemHealth?.memory || 0}%` }} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mt-6">
+                    <div className="bg-white/5 p-3 rounded-xl">
+                      <p className="text-[10px] text-slate-500 uppercase font-black">Latency</p>
+                      <p className="text-sm font-bold">{systemHealth?.apiLatency || 0}ms</p>
+                    </div>
+                    <div className="bg-white/5 p-3 rounded-xl">
+                      <p className="text-[10px] text-slate-500 uppercase font-black">Uptime</p>
+                      <p className="text-sm font-bold">{Math.floor((systemHealth?.uptime || 0) / 3600)}h</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Wellbeing Heatmap / Bar Chart */}
+            <div className="lg:col-span-2 bg-white p-10 rounded-[40px] shadow-sm border border-slate-100">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-2xl font-black text-slate-900">Wellbeing Comparison</h3>
+                  <p className="text-slate-500 text-sm font-medium">Average stress scores across all hubs.</p>
+                </div>
+                <div className="flex items-center space-x-2 text-xs font-bold text-slate-400">
+                  <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
+                  <span>Healthy</span>
+                  <div className="w-3 h-3 bg-rose-500 rounded-full ml-2"></div>
+                  <span>High Stress</span>
+                </div>
+              </div>
+              <div className="h-[250px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={wellbeingInsights.map(i => ({ name: i.org.name, score: i.avgStress }))}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} domain={[0, 10]} />
+                    <Tooltip 
+                      cursor={{fill: '#f8fafc'}}
+                      contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                    />
+                    <Bar dataKey="score" radius={[8, 8, 0, 0]}>
+                      {wellbeingInsights.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.avgStress > 7 ? '#f43f5e' : entry.avgStress > 4 ? '#f59e0b' : '#10b981'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Wellbeing Insights (List View) */}
             <div className="lg:col-span-2 bg-white p-10 rounded-[40px] shadow-sm border border-slate-100">
               <div className="flex items-center justify-between mb-8">
                 <div>
@@ -431,6 +633,13 @@ const SuperAdminDashboard: React.FC = () => {
                     >
                       <span className="font-bold text-sm">{isMaintenanceMode ? 'Disable Maintenance' : 'System Maintenance'}</span>
                       <div className={`w-2 h-2 rounded-full ${isMaintenanceMode ? 'bg-rose-500 animate-pulse' : 'bg-white/40'}`}></div>
+                    </button>
+                    <button 
+                      onClick={handleSeedData}
+                      className="w-full flex items-center justify-between p-4 bg-emerald-500 hover:bg-emerald-400 rounded-2xl transition-all group"
+                    >
+                      <span className="font-bold text-sm">Seed Sample Data</span>
+                      <Plus className="w-4 h-4 text-white/40" />
                     </button>
                     <button 
                       onClick={downloadAuditReport}
@@ -547,6 +756,79 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hub Requests Tab */}
+      {activeTab === 'org-applications' && (
+        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="p-8 border-b border-slate-50">
+            <h2 className="text-xl font-black text-slate-900">Hub Onboarding Requests</h2>
+            <p className="text-slate-400 text-sm font-medium">Pending applications from organisations wanting to join the platform.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/50">
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Organisation</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Contact</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Reason</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {orgApplications.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-8 py-20 text-center text-slate-400 italic">No onboarding requests found.</td>
+                  </tr>
+                ) : (
+                  orgApplications.map((app) => (
+                    <tr key={app._id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-8 py-5">
+                        <span className="font-bold text-slate-900 block">{app.name}</span>
+                        <span className="text-xs text-slate-400">{new Date(app.createdAt).toLocaleDateString()}</span>
+                      </td>
+                      <td className="px-8 py-5">
+                        <span className="font-bold text-slate-700 block">{app.contactName}</span>
+                        <span className="text-xs text-slate-400">{app.email}</span>
+                      </td>
+                      <td className="px-8 py-5">
+                        <p className="text-xs text-slate-600 max-w-xs line-clamp-2">{app.reason}</p>
+                      </td>
+                      <td className="px-8 py-5">
+                        <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase ${
+                          app.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                          app.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                          'bg-rose-100 text-rose-700'
+                        }`}>
+                          {app.status}
+                        </span>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="flex items-center space-x-2">
+                          <button 
+                            onClick={() => handleUpdateOrgApplication(app._id, 'APPROVED')}
+                            className="p-2 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+                            title="Approve"
+                          >
+                            <CheckCircle2 className="w-5 h-5" />
+                          </button>
+                          <button 
+                            onClick={() => handleUpdateOrgApplication(app._id, 'REJECTED')}
+                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                            title="Reject"
+                          >
+                            <XCircle className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -818,9 +1100,17 @@ const SuperAdminDashboard: React.FC = () => {
                 <h2 className="text-3xl font-black tracking-tight">Platform Logs</h2>
                 <p className="text-slate-400 text-sm mt-1">Real-time system events and audit trail.</p>
               </div>
-              <button onClick={() => setShowLogsModal(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                <XCircle className="w-8 h-8" />
-              </button>
+              <div className="flex items-center space-x-4">
+                <button 
+                  onClick={handleClearLogs}
+                  className="px-4 py-2 bg-rose-500/10 text-rose-500 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-rose-500/20 transition-all"
+                >
+                  Clear All Logs
+                </button>
+                <button onClick={() => setShowLogsModal(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                  <XCircle className="w-8 h-8" />
+                </button>
+              </div>
             </div>
             <div className="p-10 max-h-[60vh] overflow-y-auto">
               <div className="space-y-4">
@@ -1028,7 +1318,196 @@ const SuperAdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* New Organisation Modal */}
+      {/* Support Desk Tab */}
+      {activeTab === 'tickets' && (
+        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="p-8 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-black text-slate-900">Support Desk</h2>
+              <p className="text-slate-400 text-sm font-medium">Manage incoming support requests from Hub Admins</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/50">
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Subject</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Organisation</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Priority</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {tickets.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-8 py-20 text-center text-slate-400 italic">No support tickets found.</td>
+                  </tr>
+                ) : (
+                  tickets.map((ticket) => (
+                    <tr key={ticket._id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-8 py-5">
+                        <span className="font-bold text-slate-900 block">{ticket.subject}</span>
+                        <span className="text-xs text-slate-400 font-medium">From: {ticket.userId?.name}</span>
+                      </td>
+                      <td className="px-8 py-5">
+                        <span className="text-sm font-bold text-slate-700">{ticket.organisationId?.name}</span>
+                      </td>
+                      <td className="px-8 py-5">
+                        <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase ${
+                          ticket.priority === 'URGENT' ? 'bg-rose-100 text-rose-700' :
+                          ticket.priority === 'HIGH' ? 'bg-amber-100 text-amber-700' :
+                          'bg-slate-100 text-slate-700'
+                        }`}>
+                          {ticket.priority}
+                        </span>
+                      </td>
+                      <td className="px-8 py-5">
+                        <select 
+                          value={ticket.status}
+                          onChange={(e) => handleUpdateTicket(ticket._id, e.target.value)}
+                          className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase outline-none cursor-pointer ${
+                            ticket.status === 'OPEN' ? 'bg-indigo-50 text-indigo-600' :
+                            ticket.status === 'RESOLVED' ? 'bg-emerald-50 text-emerald-600' :
+                            'bg-slate-50 text-slate-600'
+                          }`}
+                        >
+                          <option value="OPEN">Open</option>
+                          <option value="IN_PROGRESS">In Progress</option>
+                          <option value="RESOLVED">Resolved</option>
+                          <option value="CLOSED">Closed</option>
+                        </select>
+                      </td>
+                      <td className="px-8 py-5">
+                        <button 
+                          onClick={() => setSelectedTicket(ticket)}
+                          className="p-2 text-slate-300 hover:text-indigo-600 transition-colors"
+                        >
+                          <ArrowUpRight className="w-5 h-5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Platform Settings Tab */}
+      {activeTab === 'settings' && (
+        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="max-w-2xl">
+            <h2 className="text-2xl font-black text-slate-900 mb-2">Platform Settings</h2>
+            <p className="text-slate-400 text-sm font-medium mb-10">Configure global parameters and system behavior.</p>
+            
+            <form onSubmit={handleUpdateSettings} className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Platform Name</label>
+                  <input 
+                    className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-slate-700"
+                    value={platformSettings?.platformName || ''}
+                    onChange={e => setPlatformSettings({...platformSettings, platformName: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Stress Check Interval (Days)</label>
+                  <input 
+                    type="number"
+                    className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white outline-none transition-all font-medium text-slate-700"
+                    value={platformSettings?.defaultStressCheckInterval || 7}
+                    onChange={e => setPlatformSettings({...platformSettings, defaultStressCheckInterval: parseInt(e.target.value)})}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl">
+                  <div>
+                    <p className="font-black text-slate-900">Allow Public Registration</p>
+                    <p className="text-xs text-slate-400 font-medium">Allow users to sign up without an invite code. (If off, users must apply for access)</p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setPlatformSettings({...platformSettings, allowPublicRegistration: !platformSettings?.allowPublicRegistration})}
+                    className={`w-14 h-8 rounded-full transition-all relative ${platformSettings?.allowPublicRegistration ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                  >
+                    <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${platformSettings?.allowPublicRegistration ? 'left-7' : 'left-1'}`} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl">
+                  <div>
+                    <p className="font-black text-slate-900">Maintenance Mode</p>
+                    <p className="text-xs text-slate-400 font-medium">Restrict access to the platform for maintenance. (Only Super Admins can log in)</p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setPlatformSettings({...platformSettings, maintenanceMode: !platformSettings?.maintenanceMode})}
+                    className={`w-14 h-8 rounded-full transition-all relative ${platformSettings?.maintenanceMode ? 'bg-rose-600' : 'bg-slate-200'}`}
+                  >
+                    <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${platformSettings?.maintenanceMode ? 'left-7' : 'left-1'}`} />
+                  </button>
+                </div>
+              </div>
+
+              <button 
+                type="submit"
+                className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all"
+              >
+                Save Changes
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Ticket Details Modal */}
+      {selectedTicket && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-slate-900 p-10 text-white flex justify-between items-start">
+              <div>
+                <h2 className="text-3xl font-black tracking-tight">Ticket Details</h2>
+                <p className="text-slate-400 text-sm mt-1 font-black uppercase tracking-widest">ID: {selectedTicket._id}</p>
+              </div>
+              <button onClick={() => setSelectedTicket(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <XCircle className="w-8 h-8" />
+              </button>
+            </div>
+            <div className="p-10 space-y-8">
+              <div className="space-y-2">
+                <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs">Subject</h4>
+                <p className="text-xl font-bold text-slate-800">{selectedTicket.subject}</p>
+              </div>
+              <div className="space-y-2">
+                <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs">Message</h4>
+                <div className="p-6 bg-slate-50 rounded-3xl text-slate-600 font-medium leading-relaxed">
+                  {selectedTicket.message}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 rounded-2xl">
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">From Organisation</p>
+                  <p className="font-bold text-slate-900">{selectedTicket.organisationId?.name}</p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-2xl">
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Submitted By</p>
+                  <p className="font-bold text-slate-900">{selectedTicket.userId?.name}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedTicket(null)}
+                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all"
+              >
+                Close Ticket
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">

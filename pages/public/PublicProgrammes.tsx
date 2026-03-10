@@ -70,7 +70,7 @@ const PublicProgrammes: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredProgrammes.map((p, i) => (
             <motion.div 
-              key={p.id}
+              key={p._id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: i * 0.1 }}
@@ -78,7 +78,7 @@ const PublicProgrammes: React.FC = () => {
             >
               <div className="h-48 relative overflow-hidden">
                 <img 
-                  src={`https://picsum.photos/seed/${p.id}/600/400`} 
+                  src={`https://picsum.photos/seed/${p._id}/600/400`} 
                   alt={p.title} 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   referrerPolicy="no-referrer"
@@ -111,7 +111,7 @@ const PublicProgrammes: React.FC = () => {
 
                 <div className="pt-4 mt-auto">
                   <Link 
-                    to={`/programmes/${p.id}`}
+                    to={`/programmes/${p._id}`}
                     className="w-full flex items-center justify-center px-6 py-3 bg-indigo-50 text-indigo-700 rounded-2xl font-bold hover:bg-indigo-600 hover:text-white transition-all"
                   >
                     View Details <ArrowRight className="ml-2 w-4 h-4" />

@@ -18,6 +18,7 @@ import PublicProgrammeDetails from './pages/public/PublicProgrammeDetails';
 import About from './pages/public/About';
 import Contact from './pages/public/Contact';
 import Privacy from './pages/public/Privacy';
+import HostHub from './pages/public/HostHub';
 import PublicNavbar from './components/public/PublicNavbar';
 import PublicFooter from './components/public/PublicFooter';
 
@@ -103,6 +104,7 @@ const App: React.FC = () => {
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/host-hub" element={<HostHub />} />
 
           {/* Auth Routes */}
           <Route path="/auth/login" element={<Login onLogin={handleLogin} />} />

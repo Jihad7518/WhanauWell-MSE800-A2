@@ -1,10 +1,30 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, Heart, Users, Shield, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Heart, Users, Shield, ArrowRight, Search, LogIn, Activity, Calendar } from 'lucide-react';
 import { motion } from 'motion/react';
 
 const Home: React.FC = () => {
+  const [publicProgrammes, setPublicProgrammes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProgrammes = async () => {
+      try {
+        const response = await fetch('/api/public/programmes');
+        const data = await response.json();
+        if (data.success) {
+          setPublicProgrammes(data.data.slice(0, 3)); // Show top 3
+        }
+      } catch (err) {
+        console.error('Failed to fetch public programmes');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProgrammes();
+  }, []);
+
   return (
     <div className="space-y-20 pb-20">
       {/* Hero Section */}
@@ -51,6 +71,64 @@ const Home: React.FC = () => {
             </Link>
           </motion.div>
         </div>
+      </section>
+
+      {/* Featured Programmes Section */}
+      <section className="max-w-7xl mx-auto px-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+          <div>
+            <h2 className="text-4xl font-black text-slate-900 tracking-tight">Featured Programmes</h2>
+            <p className="text-slate-500 mt-2 font-medium">Discover initiatives happening right now in your community.</p>
+          </div>
+          <Link to="/programmes" className="text-indigo-600 font-black uppercase tracking-widest text-xs flex items-center hover:translate-x-1 transition-transform">
+            View All Programmes <ArrowRight className="ml-2 w-4 h-4" />
+          </Link>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-80 bg-slate-100 rounded-[32px] animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {publicProgrammes.map((p, i) => (
+              <motion.div 
+                key={p._id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="group bg-white rounded-[32px] overflow-hidden border border-slate-100 shadow-sm hover:shadow-2xl transition-all"
+              >
+                <div className="h-48 relative overflow-hidden">
+                  <img 
+                    src={`https://picsum.photos/seed/${p._id}/600/400`} 
+                    alt={p.title} 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute top-4 left-4">
+                    <span className="px-3 py-1 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                      {p.category || 'Wellbeing'}
+                    </span>
+                  </div>
+                </div>
+                <div className="p-8">
+                  <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-indigo-600 transition-colors">{p.title}</h3>
+                  <p className="text-slate-500 text-sm line-clamp-2 mb-6">{p.publicSummary}</p>
+                  <Link 
+                    to={`/programmes/${p._id}`}
+                    className="inline-flex items-center text-indigo-600 font-bold text-sm hover:translate-x-1 transition-transform"
+                  >
+                    Learn More <ArrowRight className="ml-2 w-4 h-4" />
+                  </Link>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* How It Works */}
@@ -108,8 +186,5 @@ const Home: React.FC = () => {
     </div>
   );
 };
-
-// Mock icons for the map since I can't import them inside the map easily without defining them
-import { Search, LogIn, Activity } from 'lucide-react';
 
 export default Home;

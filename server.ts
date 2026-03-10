@@ -11,6 +11,10 @@ import Programme from './backend/models/Programme.ts';
 import StressRecord from './backend/models/StressRecord.ts';
 import Broadcast from './backend/models/Broadcast.ts';
 import SystemLog from './backend/models/SystemLog.ts';
+import SupportTicket from './backend/models/SupportTicket.ts';
+import GlobalSettings from './backend/models/GlobalSettings.ts';
+import MembershipApplication from './backend/models/MembershipApplication.ts';
+import OrganisationApplication from './backend/models/OrganisationApplication.ts';
 import { StressService } from './backend/services/StressService.ts';
 import { authMiddleware, tenantMiddleware, roleMiddleware } from './backend/middleware/auth.ts';
 
@@ -70,7 +74,193 @@ async function startServer() {
     res.json({ status: "ok", message: "WhānauWell API is running" });
   });
 
+  // Public Routes
+  app.get("/api/public/programmes", async (req, res) => {
+    try {
+      const programmes = await Programme.find({ visibility: 'PUBLIC' }).populate('organisationId', 'name');
+      res.json({ success: true, data: programmes });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.get("/api/public/programmes/:id", async (req, res) => {
+    try {
+      const programme = await Programme.findById(req.params.id).populate('organisationId', 'name');
+      if (!programme) return res.status(404).json({ success: false, message: 'Programme not found' });
+      
+      if (programme.visibility !== 'PUBLIC') {
+        return res.status(403).json({ success: false, message: 'Private programme' });
+      }
+
+      // Strip member-only details for public view
+      const publicData = programme.toObject();
+      delete publicData.memberDetails;
+      
+      res.json({ success: true, data: publicData });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.get("/api/public/settings", async (req, res) => {
+    try {
+      const settings = await GlobalSettings.findOne() || { platformName: 'WhānauWell', allowPublicRegistration: true };
+      res.json({ success: true, data: settings });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.post("/api/public/apply-org", async (req, res) => {
+    try {
+      const { name, contactName, email, reason } = req.body;
+      const application = await OrganisationApplication.create({
+        name,
+        contactName,
+        email,
+        reason,
+        status: 'PENDING'
+      });
+      await logEvent('ORG_APPLICATION_SUBMITTED', `New organisation application from ${name}`, 'INFO');
+      res.json({ success: true, data: application });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.post("/api/public/apply", async (req, res) => {
+    try {
+      const { name, email, organisationId, message } = req.body;
+      const application = await MembershipApplication.create({
+        name,
+        email,
+        organisationId,
+        message,
+        status: 'PENDING'
+      });
+      await logEvent('MEMBERSHIP_APPLIED', `New membership application from ${name} (${email})`, 'INFO', organisationId);
+      res.json({ success: true, data: application });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  // Hub Admin Application Management
+  app.get("/api/admin/applications", authMiddleware, roleMiddleware(['ORG_ADMIN']), async (req: any, res) => {
+    try {
+      const applications = await MembershipApplication.find({ organisationId: req.user.organisationId }).sort({ createdAt: -1 });
+      res.json({ success: true, data: applications });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.put("/api/admin/applications/:id/approve", authMiddleware, roleMiddleware(['ORG_ADMIN']), async (req: any, res) => {
+    try {
+      const application = await MembershipApplication.findById(req.params.id);
+      if (!application) return res.status(404).json({ success: false, message: 'Application not found' });
+      
+      const organisation = await Organisation.findById(application.organisationId);
+      if (!organisation) return res.status(404).json({ success: false, message: 'Organisation not found' });
+
+      application.status = 'APPROVED';
+      application.inviteCodeSent = organisation.code;
+      await application.save();
+
+      await logEvent('MEMBERSHIP_APPROVED', `Membership application for ${application.name} approved`, 'SUCCESS', organisation._id, req.user.id);
+      
+      res.json({ success: true, message: 'Application approved and code assigned', code: organisation.code });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
   // Super Admin Routes
+  app.get("/api/admin/org-applications", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      const applications = await OrganisationApplication.find().sort({ createdAt: -1 });
+      res.json({ success: true, data: applications });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.put("/api/admin/org-applications/:id", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req: any, res) => {
+    try {
+      const { status } = req.body;
+      const application = await OrganisationApplication.findByIdAndUpdate(req.params.id, { status }, { new: true });
+      await logEvent('ORG_APPLICATION_UPDATED', `Organisation application ${req.params.id} updated to ${status}`, 'INFO', null, req.user.id);
+      res.json({ success: true, data: application });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.post("/api/admin/seed-data", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req: any, res) => {
+    try {
+      // Create some sample organisations
+      const orgs = [
+        { name: 'Waitaha Health Hub', code: 'WAITAHA-2026' },
+        { name: 'Te Tai Tokerau Wellness', code: 'TTT-WELL' },
+        { name: 'Auckland Community Care', color: 'AKL-CARE' }
+      ];
+
+      for (const orgData of orgs) {
+        await Organisation.findOneAndUpdate({ code: orgData.code }, orgData, { upsert: true });
+      }
+
+      const waitaha = await Organisation.findOne({ code: 'WAITAHA-2026' });
+      const ttt = await Organisation.findOne({ code: 'TTT-WELL' });
+
+      // Create sample programmes
+      const sampleProgs = [
+        {
+          title: 'Yoga in the Park',
+          publicSummary: 'Join us for a relaxing yoga session every Saturday morning at Hagley Park. Open to all levels.',
+          memberDetails: 'Meeting point: North Hagley Park, near the band rotunda. Bring your own mat. Zoom backup link: https://zoom.us/j/yoga-park',
+          visibility: 'PUBLIC',
+          startDate: new Date(),
+          location: 'Hagley Park, Christchurch',
+          category: 'Physical Health',
+          organisationId: waitaha?._id,
+          coordinatorId: req.user.id
+        },
+        {
+          title: 'Mindfulness Workshop',
+          publicSummary: 'A 4-week intensive workshop on mindfulness and stress reduction techniques.',
+          memberDetails: 'Exclusive resources for members: [Mindfulness Guide PDF](https://example.com/guide). Weekly sessions on Tuesdays at 6 PM.',
+          visibility: 'ORG_ONLY',
+          startDate: new Date(),
+          location: 'Online / Whānau Centre',
+          category: 'Mental Health',
+          organisationId: waitaha?._id,
+          coordinatorId: req.user.id
+        },
+        {
+          title: 'Healthy Cooking for Families',
+          publicSummary: 'Learn how to cook nutritious and affordable meals for your whānau.',
+          memberDetails: 'Recipe book and meal planner available in the members portal.',
+          visibility: 'PUBLIC',
+          startDate: new Date(),
+          location: 'Community Kitchen',
+          category: 'Nutrition',
+          organisationId: ttt?._id,
+          coordinatorId: req.user.id
+        }
+      ];
+
+      for (const progData of sampleProgs) {
+        await Programme.findOneAndUpdate({ title: progData.title }, progData, { upsert: true });
+      }
+
+      await logEvent('DATA_SEEDED', 'Sample data seeded by Super Admin', 'SUCCESS', null, req.user.id);
+      res.json({ success: true, message: 'Sample data seeded successfully' });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
   app.get("/api/admin/organisations", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
     try {
       const organisations = await Organisation.find();
@@ -196,6 +386,16 @@ async function startServer() {
     }
   });
 
+  app.delete("/api/admin/logs", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req: any, res) => {
+    try {
+      await SystemLog.deleteMany({});
+      await logEvent('LOGS_CLEARED', 'All system logs were cleared by Super Admin', 'WARNING', null, req.user.id);
+      res.json({ success: true, message: 'Logs cleared' });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
   app.get("/api/admin/wellbeing-insights", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
     try {
       // Aggregated stress data
@@ -204,7 +404,9 @@ async function startServer() {
           $group: {
             _id: "$organisationId",
             avgStress: { $avg: "$score" },
-            count: { $sum: 1 }
+            count: { $sum: 1 },
+            maxStress: { $max: "$score" },
+            minStress: { $min: "$score" }
           }
         },
         {
@@ -218,6 +420,67 @@ async function startServer() {
         { $unwind: "$org" }
       ]);
       res.json({ success: true, data: insights });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  // Support Ticket Routes
+  app.get("/api/admin/tickets", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      const tickets = await SupportTicket.find().sort({ createdAt: -1 }).populate('userId', 'name email').populate('organisationId', 'name');
+      res.json({ success: true, data: tickets });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.put("/api/admin/tickets/:id", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req: any, res) => {
+    try {
+      const { status, priority } = req.body;
+      const ticket = await SupportTicket.findByIdAndUpdate(req.params.id, { status, priority }, { new: true });
+      await logEvent('TICKET_UPDATED', `Ticket ${req.params.id} updated to ${status}`, 'INFO', null, req.user.id);
+      res.json({ success: true, data: ticket });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  // Global Settings Routes
+  app.get("/api/admin/settings", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      let settings = await GlobalSettings.findOne();
+      if (!settings) settings = await GlobalSettings.create({});
+      res.json({ success: true, data: settings });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.put("/api/admin/settings", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req: any, res) => {
+    try {
+      const { platformName, maintenanceMode, allowPublicRegistration, defaultStressCheckInterval } = req.body;
+      const settings = await GlobalSettings.findOneAndUpdate({}, { platformName, maintenanceMode, allowPublicRegistration, defaultStressCheckInterval }, { new: true, upsert: true });
+      await logEvent('SETTINGS_UPDATED', `Global platform settings updated`, 'WARNING', null, req.user.id);
+      res.json({ success: true, data: settings });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  // System Health Simulation
+  app.get("/api/admin/health", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    try {
+      // Simulated health metrics
+      const health = {
+        cpu: Math.floor(Math.random() * 40) + 10, // 10-50%
+        memory: Math.floor(Math.random() * 30) + 20, // 20-50%
+        uptime: process.uptime(),
+        database: 'Connected',
+        apiLatency: Math.floor(Math.random() * 100) + 50, // 50-150ms
+        activeConnections: Math.floor(Math.random() * 50) + 10
+      };
+      res.json({ success: true, data: health });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }
@@ -271,10 +534,22 @@ async function startServer() {
     const { name, email, password, orgCode, adminCode } = req.body;
     
     try {
-      // 1. Validate invite code
-      const organisation = await Organisation.findOne({ code: orgCode });
-      if (!organisation) {
-        return res.status(400).json({ success: false, message: 'Invalid organisation invite code.' });
+      const settings = await GlobalSettings.findOne() || { allowPublicRegistration: true };
+      
+      // 1. Validate invite code or check public registration
+      let organisation;
+      if (orgCode) {
+        organisation = await Organisation.findOne({ code: orgCode });
+        if (!organisation) {
+          return res.status(400).json({ success: false, message: 'Invalid organisation invite code.' });
+        }
+      } else if (settings.allowPublicRegistration) {
+        organisation = await Organisation.findOne({ code: 'MASTER' });
+        if (!organisation) {
+          organisation = await Organisation.create({ name: 'WhānauWell Global', code: 'MASTER' });
+        }
+      } else {
+        return res.status(400).json({ success: false, message: 'Invite code is required for registration.' });
       }
 
       // 2. Check if user exists
@@ -377,43 +652,19 @@ async function startServer() {
     }
   });
 
-  // Public Programme Routes
-  app.get("/api/public/programmes", async (req, res) => {
-    try {
-      const programmes = await Programme.find({ visibility: 'PUBLIC' }).populate('organisationId', 'name');
-      res.json({ success: true, data: programmes });
-    } catch (error: any) {
-      res.status(500).json({ success: false, message: error.message });
-    }
-  });
-
-  app.get("/api/public/programmes/:id", async (req, res) => {
-    try {
-      const programme = await Programme.findById(req.params.id).populate('organisationId', 'name');
-      if (!programme) return res.status(404).json({ success: false, message: 'Programme not found' });
-      
-      // If public, return public fields. If private, check auth (but this is a public endpoint)
-      if (programme.visibility !== 'PUBLIC') {
-        return res.status(403).json({ success: false, message: 'Private programme' });
-      }
-
-      res.json({ success: true, data: programme });
-    } catch (error: any) {
-      res.status(500).json({ success: false, message: error.message });
-    }
-  });
-
   // Programme Routes
   app.get("/api/programmes", authMiddleware, tenantMiddleware, async (req: any, res) => {
     try {
-      // Members see all ORG_ONLY for their org + all PUBLIC (even from other orgs? prompt says "All ORG_ONLY for their organisation PLUS public programmes")
-      // Usually "public" in multi-tenant means public to the world.
-      const programmes = await Programme.find({
+      const isSuperAdmin = req.user.role === 'SUPER_ADMIN';
+      
+      const query = isSuperAdmin ? {} : {
         $or: [
           { organisationId: req.tenantId },
           { visibility: 'PUBLIC' }
         ]
-      }).populate('coordinatorId', 'name').populate('organisationId', 'name');
+      };
+
+      const programmes = await Programme.find(query).populate('coordinatorId', 'name').populate('organisationId', 'name');
       res.json({ success: true, data: programmes });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
@@ -425,11 +676,11 @@ async function startServer() {
       const programme = await Programme.findById(req.params.id).populate('coordinatorId', 'name').populate('organisationId', 'name');
       if (!programme) return res.status(404).json({ success: false, message: 'Programme not found' });
       
-      // Check if user is in the same org or if it's public
-      const isSameOrg = programme.organisationId._id.toString() === req.user.organisationId.toString();
+      const isSuperAdmin = req.user.role === 'SUPER_ADMIN';
+      const isSameOrg = programme.organisationId?._id?.toString() === req.user.organisationId?.toString();
       const isPublic = programme.visibility === 'PUBLIC';
 
-      if (!isSameOrg && !isPublic) {
+      if (!isSameOrg && !isPublic && !isSuperAdmin) {
         return res.status(403).json({ success: false, message: 'Access denied' });
       }
 
