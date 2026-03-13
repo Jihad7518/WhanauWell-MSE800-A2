@@ -54,16 +54,126 @@ async function startServer() {
 
     // Seed Super Admin
     const superAdmin = await User.findOne({ email: 'admin@whanauwell.org' });
+    let superAdminId;
     if (!superAdmin) {
       const passwordHash = await bcrypt.hash('WhanauWell2026!', 10);
-      await User.create({
+      const newAdmin = await User.create({
         name: 'System Administrator',
         email: 'admin@whanauwell.org',
         passwordHash,
         role: 'SUPER_ADMIN',
         organisationId: masterOrg._id
       });
+      superAdminId = newAdmin._id;
       console.log("Seeded Super Admin: admin@whanauwell.org");
+    } else {
+      superAdminId = superAdmin._id;
+    }
+
+    // Auto-seed more data if specific items are missing
+    const yogaProg = await Programme.findOne({ title: 'Yoga in the Park' });
+    if (!yogaProg) {
+      console.log("Seeding missing sample data...");
+      
+      let waitaha = await Organisation.findOne({ code: 'WAITAHA-2026' });
+      if (!waitaha) {
+        waitaha = await Organisation.create({ name: 'Waitaha Health Hub', code: 'WAITAHA-2026' });
+      }
+      
+      let ttt = await Organisation.findOne({ code: 'TTT-WELL' });
+      if (!ttt) {
+        ttt = await Organisation.create({ name: 'Te Tai Tokerau Wellness', code: 'TTT-WELL' });
+      }
+
+      // Seed some users if they don't exist
+      const usersToSeed = [
+        { name: 'Jihad Admin', email: 'jihad@waitaha.org', role: 'ORG_ADMIN', org: waitaha },
+        { name: 'Sarah Coordinator', email: 'sarah@waitaha.org', role: 'COORDINATOR', org: waitaha },
+        { name: 'John Member', email: 'john@waitaha.org', role: 'MEMBER', org: waitaha },
+        { name: 'Hana Admin', email: 'hana@ttt.org', role: 'ORG_ADMIN', org: ttt }
+      ];
+
+      for (const u of usersToSeed) {
+        const existing = await User.findOne({ email: u.email });
+        if (!existing) {
+          const hash = await bcrypt.hash('Password123!', 10);
+          await User.create({
+            name: u.name,
+            email: u.email,
+            passwordHash: hash,
+            role: u.role,
+            organisationId: u.org?._id
+          });
+        }
+      }
+
+      // Seed Hub Requests if none exist
+      const appCount = await OrganisationApplication.countDocuments();
+      if (appCount === 0) {
+        await OrganisationApplication.create([
+          { name: 'Wellington Whānau Trust', contactName: 'Wiremu Kingi', email: 'wiremu@wellington.org', reason: 'We want to provide digital wellbeing tools to our 200+ members in the Hutt Valley.', status: 'PENDING' },
+          { name: 'South Island Support', contactName: 'Emma Smith', email: 'emma@sisupport.org', reason: 'Expanding our mental health services to rural communities.', status: 'PENDING' },
+          { name: 'Otago Community Hub', contactName: 'David Miller', email: 'david@otago.org', reason: 'Supporting local youth with mental health resources.', status: 'PENDING' }
+        ]);
+      }
+
+      // Seed Programmes
+      await Programme.create([
+        {
+          title: 'Yoga in the Park',
+          publicSummary: 'Join us for a relaxing yoga session every Saturday morning at Hagley Park. Open to all levels.',
+          memberDetails: 'Meeting point: North Hagley Park, near the band rotunda. Bring your own mat. Zoom backup link: https://zoom.us/j/yoga-park',
+          visibility: 'PUBLIC',
+          startDate: new Date(),
+          location: 'Hagley Park, Christchurch',
+          category: 'Physical Health',
+          organisationId: waitaha?._id,
+          coordinatorId: superAdminId
+        },
+        {
+          title: 'Mindfulness Workshop',
+          publicSummary: 'A 4-week intensive workshop on mindfulness and stress reduction techniques.',
+          memberDetails: 'Exclusive resources for members: [Mindfulness Guide PDF](https://example.com/guide). Weekly sessions on Tuesdays at 6 PM.',
+          visibility: 'ORG_ONLY',
+          startDate: new Date(),
+          location: 'Online / Whānau Centre',
+          category: 'Mental Health',
+          organisationId: waitaha?._id,
+          coordinatorId: superAdminId
+        },
+        {
+          title: 'Healthy Cooking for Families',
+          publicSummary: 'Learn how to cook nutritious and affordable meals for your whānau.',
+          memberDetails: 'Recipe book and meal planner available in the members portal.',
+          visibility: 'PUBLIC',
+          startDate: new Date(),
+          location: 'Community Kitchen',
+          category: 'Nutrition',
+          organisationId: ttt?._id,
+          coordinatorId: superAdminId
+        }
+      ]);
+
+      // Seed Support Tickets
+      const ticketCount = await SupportTicket.countDocuments();
+      if (ticketCount === 0) {
+        await SupportTicket.create([
+          { subject: 'Unable to invite new members', userId: superAdminId, organisationId: waitaha?._id, priority: 'HIGH', status: 'OPEN', message: 'I am getting an error when trying to generate new invite codes.' },
+          { subject: 'Feature Request: Mobile App', userId: superAdminId, organisationId: ttt?._id, priority: 'LOW', status: 'OPEN', message: 'Our members are asking if there is a mobile app available.' },
+          { subject: 'Login Issue', userId: superAdminId, organisationId: waitaha?._id, priority: 'URGENT', status: 'IN_PROGRESS', message: 'Some users are reporting they cannot log in after the last update.' }
+        ]);
+      }
+
+      // Seed Membership Applications
+      const memAppCount = await MembershipApplication.countDocuments();
+      if (memAppCount === 0) {
+        await MembershipApplication.create([
+          { name: 'Alice Cooper', email: 'alice@example.com', organisationId: waitaha?._id, message: 'I would like to join the Waitaha Health Hub to access the yoga sessions.', status: 'PENDING' },
+          { name: 'Bob Marley', email: 'bob@example.com', organisationId: ttt?._id, message: 'Interested in the healthy cooking workshops.', status: 'PENDING' }
+        ]);
+      }
+
+      console.log("Sample data seeded successfully.");
     }
   } catch (err) {
     console.error("MongoDB connection error:", err);
@@ -192,70 +302,6 @@ async function startServer() {
       const application = await OrganisationApplication.findByIdAndUpdate(req.params.id, { status }, { new: true });
       await logEvent('ORG_APPLICATION_UPDATED', `Organisation application ${req.params.id} updated to ${status}`, 'INFO', null, req.user.id);
       res.json({ success: true, data: application });
-    } catch (error: any) {
-      res.status(500).json({ success: false, message: error.message });
-    }
-  });
-
-  app.post("/api/admin/seed-data", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req: any, res) => {
-    try {
-      // Create some sample organisations
-      const orgs = [
-        { name: 'Waitaha Health Hub', code: 'WAITAHA-2026' },
-        { name: 'Te Tai Tokerau Wellness', code: 'TTT-WELL' },
-        { name: 'Auckland Community Care', color: 'AKL-CARE' }
-      ];
-
-      for (const orgData of orgs) {
-        await Organisation.findOneAndUpdate({ code: orgData.code }, orgData, { upsert: true });
-      }
-
-      const waitaha = await Organisation.findOne({ code: 'WAITAHA-2026' });
-      const ttt = await Organisation.findOne({ code: 'TTT-WELL' });
-
-      // Create sample programmes
-      const sampleProgs = [
-        {
-          title: 'Yoga in the Park',
-          publicSummary: 'Join us for a relaxing yoga session every Saturday morning at Hagley Park. Open to all levels.',
-          memberDetails: 'Meeting point: North Hagley Park, near the band rotunda. Bring your own mat. Zoom backup link: https://zoom.us/j/yoga-park',
-          visibility: 'PUBLIC',
-          startDate: new Date(),
-          location: 'Hagley Park, Christchurch',
-          category: 'Physical Health',
-          organisationId: waitaha?._id,
-          coordinatorId: req.user.id
-        },
-        {
-          title: 'Mindfulness Workshop',
-          publicSummary: 'A 4-week intensive workshop on mindfulness and stress reduction techniques.',
-          memberDetails: 'Exclusive resources for members: [Mindfulness Guide PDF](https://example.com/guide). Weekly sessions on Tuesdays at 6 PM.',
-          visibility: 'ORG_ONLY',
-          startDate: new Date(),
-          location: 'Online / Whānau Centre',
-          category: 'Mental Health',
-          organisationId: waitaha?._id,
-          coordinatorId: req.user.id
-        },
-        {
-          title: 'Healthy Cooking for Families',
-          publicSummary: 'Learn how to cook nutritious and affordable meals for your whānau.',
-          memberDetails: 'Recipe book and meal planner available in the members portal.',
-          visibility: 'PUBLIC',
-          startDate: new Date(),
-          location: 'Community Kitchen',
-          category: 'Nutrition',
-          organisationId: ttt?._id,
-          coordinatorId: req.user.id
-        }
-      ];
-
-      for (const progData of sampleProgs) {
-        await Programme.findOneAndUpdate({ title: progData.title }, progData, { upsert: true });
-      }
-
-      await logEvent('DATA_SEEDED', 'Sample data seeded by Super Admin', 'SUCCESS', null, req.user.id);
-      res.json({ success: true, message: 'Sample data seeded successfully' });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }

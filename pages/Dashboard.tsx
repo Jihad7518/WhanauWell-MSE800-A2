@@ -175,7 +175,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <h2 className="text-xl font-bold text-slate-900">Participation Trends</h2>
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Last 4 Weeks</div>
           </div>
-          <div className="h-80 w-full">
+          <div className="h-80 w-full min-h-[320px]">
             {participationData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={participationData}>
@@ -200,7 +200,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
           <h2 className="text-xl font-bold text-slate-900 mb-8">Stress Distribution</h2>
-          <div className="h-64 w-full relative">
+          <div className="h-64 w-full relative min-h-[256px]">
             {stressDistribution.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>

@@ -195,23 +195,6 @@ const SuperAdminDashboard: React.FC = () => {
     }
   };
 
-  const handleSeedData = async () => {
-    if (!window.confirm('This will seed sample organisations and programmes. Continue?')) return;
-    try {
-      const response = await fetch('/api/admin/seed-data', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setSuccess('Sample data seeded successfully!');
-        fetchData();
-      }
-    } catch (err) {
-      setError('Failed to seed data');
-    }
-  };
-
   const handleUpdateSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -533,7 +516,7 @@ const SuperAdminDashboard: React.FC = () => {
                   <span>High Stress</span>
                 </div>
               </div>
-              <div className="h-[250px] w-full">
+              <div className="h-[300px] w-full min-h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={wellbeingInsights.map(i => ({ name: i.org.name, score: i.avgStress }))}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -633,13 +616,6 @@ const SuperAdminDashboard: React.FC = () => {
                     >
                       <span className="font-bold text-sm">{isMaintenanceMode ? 'Disable Maintenance' : 'System Maintenance'}</span>
                       <div className={`w-2 h-2 rounded-full ${isMaintenanceMode ? 'bg-rose-500 animate-pulse' : 'bg-white/40'}`}></div>
-                    </button>
-                    <button 
-                      onClick={handleSeedData}
-                      className="w-full flex items-center justify-between p-4 bg-emerald-500 hover:bg-emerald-400 rounded-2xl transition-all group"
-                    >
-                      <span className="font-bold text-sm">Seed Sample Data</span>
-                      <Plus className="w-4 h-4 text-white/40" />
                     </button>
                     <button 
                       onClick={downloadAuditReport}
@@ -765,7 +741,7 @@ const SuperAdminDashboard: React.FC = () => {
         <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="p-8 border-b border-slate-50">
             <h2 className="text-xl font-black text-slate-900">Hub Onboarding Requests</h2>
-            <p className="text-slate-400 text-sm font-medium">Pending applications from organisations wanting to join the platform.</p>
+            <p className="text-slate-400 text-sm font-medium">Review and manage requests from new organisations (Hubs) wanting to join the platform.</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -1324,7 +1300,7 @@ const SuperAdminDashboard: React.FC = () => {
           <div className="p-8 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-black text-slate-900">Support Desk</h2>
-              <p className="text-slate-400 text-sm font-medium">Manage incoming support requests from Hub Admins</p>
+              <p className="text-slate-400 text-sm font-medium">Manage and respond to support tickets submitted by users and organisation administrators.</p>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -1391,6 +1367,80 @@ const SuperAdminDashboard: React.FC = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Support Ticket Details Modal */}
+      {selectedTicket && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-indigo-600 p-10 text-white flex justify-between items-start">
+              <div>
+                <h2 className="text-2xl font-black tracking-tight">{selectedTicket.subject}</h2>
+                <p className="text-indigo-100 text-sm mt-1 font-medium">Ticket ID: {selectedTicket._id}</p>
+              </div>
+              <button onClick={() => setSelectedTicket(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <XCircle className="w-8 h-8" />
+              </button>
+            </div>
+            <div className="p-10 space-y-6">
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center font-black text-indigo-600 shadow-sm">
+                    {selectedTicket.userId?.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">{selectedTicket.userId?.name}</p>
+                    <p className="text-xs text-slate-400">{selectedTicket.userId?.email}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-bold text-slate-900">{selectedTicket.organisationId?.name}</p>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Hub Admin</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Message</label>
+                <div className="p-6 bg-slate-50 rounded-3xl text-slate-700 text-sm leading-relaxed border border-slate-100">
+                  {selectedTicket.message}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Priority</label>
+                  <div className={`px-4 py-3 rounded-2xl font-bold text-sm ${
+                    selectedTicket.priority === 'URGENT' ? 'bg-rose-50 text-rose-600' :
+                    selectedTicket.priority === 'HIGH' ? 'bg-amber-50 text-amber-600' :
+                    'bg-slate-50 text-slate-600'
+                  }`}>
+                    {selectedTicket.priority}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Status</label>
+                  <select 
+                    value={selectedTicket.status}
+                    onChange={(e) => handleUpdateTicket(selectedTicket._id, e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 outline-none transition-all font-bold text-sm text-slate-700"
+                  >
+                    <option value="OPEN">Open</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="RESOLVED">Resolved</option>
+                    <option value="CLOSED">Closed</option>
+                  </select>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setSelectedTicket(null)}
+                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}
