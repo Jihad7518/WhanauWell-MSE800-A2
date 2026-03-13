@@ -1063,7 +1063,7 @@ const SuperAdminDashboard: React.FC = () => {
                         prog.visibility === 'GLOBAL' ? 'bg-indigo-50 text-indigo-600' :
                         'bg-rose-50 text-rose-600'
                       }`}>
-                        {prog.visibility === 'PUBLIC' ? <Globe className="w-3 h-3 inline mr-1" /> : <Lock className="w-3 h-3 inline mr-1" />}
+                        {prog.visibility === 'PUBLIC' || prog.visibility === 'GLOBAL' ? <Globe className="w-3 h-3 inline mr-1" /> : <Lock className="w-3 h-3 inline mr-1" />}
                         {prog.visibility}
                       </span>
                     </td>
