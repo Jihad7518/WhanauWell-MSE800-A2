@@ -25,7 +25,8 @@ import {
   XCircle,
   Edit,
   History,
-  Heart
+  Heart,
+  Database
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -192,6 +193,27 @@ const SuperAdminDashboard: React.FC = () => {
       }
     } catch (err) {
       setError('Failed to update application');
+    }
+  };
+
+  const handleSeedData = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/seed-data', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSuccess('Platform data initialized successfully!');
+        fetchData();
+      } else {
+        setError(data.message || 'Failed to seed data');
+      }
+    } catch (err) {
+      setError('Connection error while seeding');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1451,6 +1473,21 @@ const SuperAdminDashboard: React.FC = () => {
           <div className="max-w-2xl">
             <h2 className="text-2xl font-black text-slate-900 mb-2">Platform Settings</h2>
             <p className="text-slate-400 text-sm font-medium mb-10">Configure global parameters and system behavior.</p>
+
+            <div className="mb-12 p-8 bg-indigo-50 rounded-3xl border border-indigo-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-indigo-900">System Initialization</h3>
+                <p className="text-indigo-600/70 text-sm">Populate the platform with comprehensive sample data for testing.</p>
+              </div>
+              <button 
+                onClick={handleSeedData}
+                disabled={loading}
+                className="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center space-x-2 disabled:opacity-50"
+              >
+                <Database className="w-5 h-5" />
+                <span>{loading ? 'Seeding...' : 'Seed Sample Data'}</span>
+              </button>
+            </div>
             
             <form onSubmit={handleUpdateSettings} className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
