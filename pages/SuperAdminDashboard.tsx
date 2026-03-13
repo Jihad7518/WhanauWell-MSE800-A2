@@ -26,7 +26,8 @@ import {
   Edit,
   History,
   Heart,
-  Database
+  Database,
+  RefreshCw
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -83,55 +84,47 @@ const SuperAdminDashboard: React.FC = () => {
   });
 
   const fetchData = async () => {
+    console.log('Fetching dashboard data...');
     try {
+      const token = localStorage.getItem('whanauwell_token');
+      if (!token) {
+        console.error('No token found');
+        return;
+      }
+
+      const headers = { 'Authorization': `Bearer ${token}` };
+
       const [orgsRes, statsRes, usersRes, progsRes, broadcastsRes, logsRes, insightsRes, ticketsRes, settingsRes, healthRes, orgAppsRes] = await Promise.all([
-        fetch('/api/admin/organisations', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/stats', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/users', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/programmes', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/broadcasts', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/logs', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/wellbeing-insights', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/tickets', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/settings', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/health', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/org-applications', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        })
+        fetch('/api/admin/organisations', { headers }),
+        fetch('/api/admin/stats', { headers }),
+        fetch('/api/admin/users', { headers }),
+        fetch('/api/admin/programmes', { headers }),
+        fetch('/api/admin/broadcasts', { headers }),
+        fetch('/api/admin/logs', { headers }),
+        fetch('/api/admin/wellbeing-insights', { headers }),
+        fetch('/api/admin/tickets', { headers }),
+        fetch('/api/admin/settings', { headers }),
+        fetch('/api/admin/health', { headers }),
+        fetch('/api/admin/org-applications', { headers })
       ]);
       
-      const orgsData = await orgsRes.json();
-      const statsData = await statsRes.json();
-      const usersData = await usersRes.json();
-      const progsData = await progsRes.json();
-      const broadcastsData = await broadcastsRes.json();
-      const logsData = await logsRes.json();
-      const insightsData = await insightsRes.json();
-      const ticketsData = await ticketsRes.json();
-      const settingsData = await settingsRes.json();
-      const healthData = await healthRes.json();
-      const orgAppsData = await orgAppsRes.json();
+      const results = await Promise.all([
+        orgsRes.json(), statsRes.json(), usersRes.json(), progsRes.json(), 
+        broadcastsRes.json(), logsRes.json(), insightsRes.json(), 
+        ticketsRes.json(), settingsRes.json(), healthRes.json(), orgAppsRes.json()
+      ]);
+
+      const [
+        orgsData, statsData, usersData, progsData, broadcastsData, 
+        logsData, insightsData, ticketsData, settingsData, healthData, orgAppsData
+      ] = results;
       
+      console.log('Data fetched successfully:', {
+        orgs: orgsData.data?.length,
+        users: usersData.data?.length,
+        programmes: progsData.data?.length
+      });
+
       if (orgsData.success) setOrganisations(orgsData.data);
       if (statsData.success) setStats(statsData.data);
       if (usersData.success) setUsers(usersData.data);
@@ -145,6 +138,7 @@ const SuperAdminDashboard: React.FC = () => {
       if (orgAppsData.success) setOrgApplications(orgAppsData.data);
     } catch (err) {
       console.error('Fetch error:', err);
+      setError('Failed to refresh dashboard data. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -417,6 +411,13 @@ const SuperAdminDashboard: React.FC = () => {
         </div>
         
         <div className="flex items-center space-x-3">
+          <button 
+            onClick={fetchData}
+            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all flex items-center space-x-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh Data</span>
+          </button>
           <button 
             onClick={() => setShowLogsModal(true)}
             className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all flex items-center space-x-2"
