@@ -270,7 +270,22 @@ async function startServer() {
       ]);
 
       await logEvent('SYSTEM_SEED', 'Platform data seeded successfully', 'SUCCESS', masterOrg?._id, superAdminId);
-      return { success: true, message: 'Platform data initialized successfully' };
+
+      const finalOrgs = await Organisation.countDocuments();
+      const finalUsers = await User.countDocuments();
+      const finalProgs = await Programme.countDocuments();
+      
+      console.log('Seeding complete. Final counts:', {
+        organisations: finalOrgs,
+        users: finalUsers,
+        programmes: finalProgs
+      });
+
+      return { 
+        success: true, 
+        message: 'Platform data initialized successfully',
+        counts: { organisations: finalOrgs, users: finalUsers, programmes: finalProgs }
+      };
     } catch (error: any) {
       console.error("Seeding error:", error);
       await logEvent('SYSTEM_SEED_ERROR', error.message, 'ERROR');
@@ -466,8 +481,10 @@ async function startServer() {
   });
 
   app.get("/api/admin/organisations", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    console.log('GET /api/admin/organisations hit by user:', req.user.email);
     try {
       const organisations = await Organisation.find();
+      console.log(`Found ${organisations.length} organisations`);
       const orgsWithStats = await Promise.all(organisations.map(async (org) => {
         const userCount = await User.countDocuments({ organisationId: org._id });
         const programmeCount = await Programme.countDocuments({ organisationId: org._id });
@@ -540,6 +557,7 @@ async function startServer() {
   });
 
   app.get("/api/admin/stats", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
+    console.log('GET /api/admin/stats hit');
     try {
       const totalUsers = await User.countDocuments();
       const totalOrgs = await Organisation.countDocuments();

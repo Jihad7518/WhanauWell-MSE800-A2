@@ -119,10 +119,18 @@ const SuperAdminDashboard: React.FC = () => {
         logsData, insightsData, ticketsData, settingsData, healthData, orgAppsData
       ] = results;
       
-      console.log('Data fetched successfully:', {
-        orgs: orgsData.data?.length,
-        users: usersData.data?.length,
-        programmes: progsData.data?.length
+      console.log('Dashboard Data Status:', {
+        orgs: orgsRes.status,
+        stats: statsRes.status,
+        users: usersRes.status,
+        progs: progsRes.status
+      });
+
+      console.log('Dashboard Data Payload:', {
+        orgs: orgsData,
+        stats: statsData,
+        users: usersData,
+        progs: progsData
       });
 
       if (orgsData.success) setOrganisations(orgsData.data);
@@ -200,6 +208,7 @@ const SuperAdminDashboard: React.FC = () => {
       const data = await response.json();
       if (data.success) {
         setSuccess('Platform data initialized successfully!');
+        console.log('Seed counts from server:', data.counts);
         fetchData();
       } else {
         setError(data.message || 'Failed to seed data');
