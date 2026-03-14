@@ -48,6 +48,7 @@ const SuperAdminDashboard: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [programmes, setProgrammes] = useState<any[]>([]);
   const [orgApplications, setOrgApplications] = useState<any[]>([]);
+  const [approvedOrgInfo, setApprovedOrgInfo] = useState<{ name: string, code: string, adminSecret: string } | null>(null);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -84,6 +85,7 @@ const SuperAdminDashboard: React.FC = () => {
   });
 
   const fetchData = async () => {
+    setLoading(true);
     console.log('Fetching dashboard data...');
     try {
       const token = localStorage.getItem('whanauwell_token');
@@ -144,6 +146,8 @@ const SuperAdminDashboard: React.FC = () => {
       if (settingsData.success) setPlatformSettings(settingsData.data);
       if (healthData.success) setSystemHealth(healthData.data);
       if (orgAppsData.success) setOrgApplications(orgAppsData.data);
+      
+      setSuccess('Dashboard data refreshed successfully');
     } catch (err) {
       console.error('Fetch error:', err);
       setError('Failed to refresh dashboard data. Please check your connection.');
@@ -190,7 +194,16 @@ const SuperAdminDashboard: React.FC = () => {
       });
       const data = await response.json();
       if (data.success) {
-        setSuccess('Application updated');
+        if (status === 'APPROVED' && data.organisation) {
+          setApprovedOrgInfo({
+            name: data.organisation.name,
+            code: data.organisation.code,
+            adminSecret: data.adminSecret
+          });
+          setSuccess(`Hub "${data.organisation.name}" approved and created!`);
+        } else {
+          setSuccess(`Application ${status.toLowerCase()}`);
+        }
         fetchData();
       }
     } catch (err) {
@@ -770,7 +783,68 @@ const SuperAdminDashboard: React.FC = () => {
 
       {/* Hub Requests Tab */}
       {activeTab === 'org-applications' && (
-        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-6">
+          {approvedOrgInfo && (
+            <div className="bg-emerald-50 border-2 border-emerald-200 rounded-[32px] p-8 animate-in zoom-in-95 duration-300">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white">
+                    <CheckCircle2 className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-emerald-900">Hub Approved Successfully!</h3>
+                    <p className="text-emerald-700/70 text-sm font-medium">Provide these details to the hub administrator so they can register.</p>
+                  </div>
+                </div>
+                <button onClick={() => setApprovedOrgInfo(null)} className="text-emerald-400 hover:text-emerald-600">
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white p-6 rounded-2xl border border-emerald-100 shadow-sm">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Hub Name</span>
+                  <span className="text-lg font-bold text-slate-900">{approvedOrgInfo.name}</span>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-emerald-100 shadow-sm">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Organisation Code</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-lg font-mono font-bold text-indigo-600">{approvedOrgInfo.code}</span>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(approvedOrgInfo.code);
+                        setSuccess('Code copied to clipboard!');
+                      }}
+                      className="text-slate-400 hover:text-indigo-600 transition-colors"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-emerald-100 shadow-sm">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Admin Security Code</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-lg font-mono font-bold text-rose-600">{approvedOrgInfo.adminSecret}</span>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(approvedOrgInfo.adminSecret);
+                        setSuccess('Secret copied to clipboard!');
+                      }}
+                      className="text-slate-400 hover:text-rose-600 transition-colors"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-8 p-4 bg-white/50 rounded-xl border border-emerald-100 text-xs text-emerald-800 font-medium leading-relaxed">
+                <strong>Next Steps:</strong> The hub admin should go to the <strong>Login</strong> page, select the <strong>Admin</strong> tab, and click <strong>"Signup"</strong>. They will need to enter their details, use the <strong>Organisation Code</strong> above, and provide the <strong>Admin Security Code</strong> to verify their authority.
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="p-8 border-b border-slate-50">
             <h2 className="text-xl font-black text-slate-900">Hub Onboarding Requests</h2>
             <p className="text-slate-400 text-sm font-medium">Review and manage requests from new organisations (Hubs) wanting to join the platform.</p>
@@ -839,7 +913,8 @@ const SuperAdminDashboard: React.FC = () => {
             </table>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
       {/* Organisations Tab */}
       {activeTab === 'organisations' && (
@@ -1484,20 +1559,22 @@ const SuperAdminDashboard: React.FC = () => {
             <h2 className="text-2xl font-black text-slate-900 mb-2">Platform Settings</h2>
             <p className="text-slate-400 text-sm font-medium mb-10">Configure global parameters and system behavior.</p>
 
-            <div className="mb-12 p-8 bg-indigo-50 rounded-3xl border border-indigo-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-indigo-900">System Initialization</h3>
-                <p className="text-indigo-600/70 text-sm">Populate the platform with comprehensive sample data for testing.</p>
+            {organisations.length <= 1 && (
+              <div className="mb-12 p-8 bg-indigo-50 rounded-3xl border border-indigo-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-indigo-900">System Initialization</h3>
+                  <p className="text-indigo-600/70 text-sm">Populate the platform with comprehensive sample data for testing.</p>
+                </div>
+                <button 
+                  onClick={handleSeedData}
+                  disabled={loading}
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center space-x-2 disabled:opacity-50"
+                >
+                  <Database className="w-5 h-5" />
+                  <span>{loading ? 'Seeding...' : 'Seed Sample Data'}</span>
+                </button>
               </div>
-              <button 
-                onClick={handleSeedData}
-                disabled={loading}
-                className="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center space-x-2 disabled:opacity-50"
-              >
-                <Database className="w-5 h-5" />
-                <span>{loading ? 'Seeding...' : 'Seed Sample Data'}</span>
-              </button>
-            </div>
+            )}
             
             <form onSubmit={handleUpdateSettings} className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

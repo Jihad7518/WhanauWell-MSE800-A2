@@ -335,8 +335,13 @@ async function startServer() {
     const programmeCount = await Programme.countDocuments();
     const orgCount = await Organisation.countDocuments();
     
+    console.log(`Startup check: ${orgCount} organisations, ${programmeCount} programmes found.`);
+    
     if (programmeCount < 5 || orgCount < 2) {
+      console.log("Database looks empty or incomplete. Triggering auto-seed...");
       await seedPlatformData();
+    } else {
+      console.log("Database already contains sufficient data. Skipping auto-seed.");
     }
   } catch (err) {
     console.error("MongoDB connection error:", err);
@@ -472,9 +477,41 @@ async function startServer() {
   app.put("/api/admin/org-applications/:id", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req: any, res) => {
     try {
       const { status } = req.body;
-      const application = await OrganisationApplication.findByIdAndUpdate(req.params.id, { status }, { new: true });
+      const application = await OrganisationApplication.findById(req.params.id);
+      
+      if (!application) {
+        return res.status(404).json({ success: false, message: 'Application not found' });
+      }
+
+      application.status = status;
+      await application.save();
+
+      let createdOrg = null;
+      if (status === 'APPROVED') {
+        // Check if organisation already exists
+        createdOrg = await Organisation.findOne({ name: application.name });
+        
+        if (!createdOrg) {
+          // Create the organisation if it doesn't exist
+          const orgCode = application.name.toUpperCase().replace(/\s+/g, '-').substring(0, 10) + '-' + Math.floor(1000 + Math.random() * 9000);
+          
+          createdOrg = await Organisation.create({
+            name: application.name,
+            code: orgCode
+          });
+
+          await logEvent('ORG_CREATED', `Organisation ${application.name} created from approved application`, 'SUCCESS', createdOrg._id, req.user.id);
+        }
+      }
+
       await logEvent('ORG_APPLICATION_UPDATED', `Organisation application ${req.params.id} updated to ${status}`, 'INFO', null, req.user.id);
-      res.json({ success: true, data: application });
+      
+      res.json({ 
+        success: true, 
+        data: application, 
+        organisation: createdOrg,
+        adminSecret: process.env.ADMIN_SECRET_CODE || 'WhanauAdmin2024'
+      });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }
