@@ -25,7 +25,9 @@ import {
   XCircle,
   Edit,
   History,
-  Heart
+  Heart,
+  Database,
+  RefreshCw
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -46,6 +48,7 @@ const SuperAdminDashboard: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [programmes, setProgrammes] = useState<any[]>([]);
   const [orgApplications, setOrgApplications] = useState<any[]>([]);
+  const [approvedOrgInfo, setApprovedOrgInfo] = useState<{ name: string, code: string, adminSecret: string } | null>(null);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -82,55 +85,56 @@ const SuperAdminDashboard: React.FC = () => {
   });
 
   const fetchData = async () => {
+    setLoading(true);
+    console.log('Fetching dashboard data...');
     try {
+      const token = localStorage.getItem('whanauwell_token');
+      if (!token) {
+        console.error('No token found');
+        return;
+      }
+
+      const headers = { 'Authorization': `Bearer ${token}` };
+
       const [orgsRes, statsRes, usersRes, progsRes, broadcastsRes, logsRes, insightsRes, ticketsRes, settingsRes, healthRes, orgAppsRes] = await Promise.all([
-        fetch('/api/admin/organisations', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/stats', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/users', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/programmes', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/broadcasts', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/logs', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/wellbeing-insights', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/tickets', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/settings', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/health', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        }),
-        fetch('/api/admin/org-applications', {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-        })
+        fetch('/api/admin/organisations', { headers }),
+        fetch('/api/admin/stats', { headers }),
+        fetch('/api/admin/users', { headers }),
+        fetch('/api/admin/programmes', { headers }),
+        fetch('/api/admin/broadcasts', { headers }),
+        fetch('/api/admin/logs', { headers }),
+        fetch('/api/admin/wellbeing-insights', { headers }),
+        fetch('/api/admin/tickets', { headers }),
+        fetch('/api/admin/settings', { headers }),
+        fetch('/api/admin/health', { headers }),
+        fetch('/api/admin/org-applications', { headers })
       ]);
       
-      const orgsData = await orgsRes.json();
-      const statsData = await statsRes.json();
-      const usersData = await usersRes.json();
-      const progsData = await progsRes.json();
-      const broadcastsData = await broadcastsRes.json();
-      const logsData = await logsRes.json();
-      const insightsData = await insightsRes.json();
-      const ticketsData = await ticketsRes.json();
-      const settingsData = await settingsRes.json();
-      const healthData = await healthRes.json();
-      const orgAppsData = await orgAppsRes.json();
+      const results = await Promise.all([
+        orgsRes.json(), statsRes.json(), usersRes.json(), progsRes.json(), 
+        broadcastsRes.json(), logsRes.json(), insightsRes.json(), 
+        ticketsRes.json(), settingsRes.json(), healthRes.json(), orgAppsRes.json()
+      ]);
+
+      const [
+        orgsData, statsData, usersData, progsData, broadcastsData, 
+        logsData, insightsData, ticketsData, settingsData, healthData, orgAppsData
+      ] = results;
       
+      console.log('Dashboard Data Status:', {
+        orgs: orgsRes.status,
+        stats: statsRes.status,
+        users: usersRes.status,
+        progs: progsRes.status
+      });
+
+      console.log('Dashboard Data Payload:', {
+        orgs: orgsData,
+        stats: statsData,
+        users: usersData,
+        progs: progsData
+      });
+
       if (orgsData.success) setOrganisations(orgsData.data);
       if (statsData.success) setStats(statsData.data);
       if (usersData.success) setUsers(usersData.data);
@@ -142,8 +146,11 @@ const SuperAdminDashboard: React.FC = () => {
       if (settingsData.success) setPlatformSettings(settingsData.data);
       if (healthData.success) setSystemHealth(healthData.data);
       if (orgAppsData.success) setOrgApplications(orgAppsData.data);
+      
+      setSuccess('Dashboard data refreshed successfully');
     } catch (err) {
       console.error('Fetch error:', err);
+      setError('Failed to refresh dashboard data. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -187,7 +194,16 @@ const SuperAdminDashboard: React.FC = () => {
       });
       const data = await response.json();
       if (data.success) {
-        setSuccess('Application updated');
+        if (status === 'APPROVED' && data.organisation) {
+          setApprovedOrgInfo({
+            name: data.organisation.name,
+            code: data.organisation.code,
+            adminSecret: data.adminSecret
+          });
+          setSuccess(`Hub "${data.organisation.name}" approved and created!`);
+        } else {
+          setSuccess(`Application ${status.toLowerCase()}`);
+        }
         fetchData();
       }
     } catch (err) {
@@ -196,7 +212,7 @@ const SuperAdminDashboard: React.FC = () => {
   };
 
   const handleSeedData = async () => {
-    if (!window.confirm('This will seed sample organisations and programmes. Continue?')) return;
+    setLoading(true);
     try {
       const response = await fetch('/api/admin/seed-data', {
         method: 'POST',
@@ -204,11 +220,16 @@ const SuperAdminDashboard: React.FC = () => {
       });
       const data = await response.json();
       if (data.success) {
-        setSuccess('Sample data seeded successfully!');
+        setSuccess('Platform data initialized successfully!');
+        console.log('Seed counts from server:', data.counts);
         fetchData();
+      } else {
+        setError(data.message || 'Failed to seed data');
       }
     } catch (err) {
-      setError('Failed to seed data');
+      setError('Connection error while seeding');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -413,6 +434,13 @@ const SuperAdminDashboard: React.FC = () => {
         
         <div className="flex items-center space-x-3">
           <button 
+            onClick={fetchData}
+            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all flex items-center space-x-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh Data</span>
+          </button>
+          <button 
             onClick={() => setShowLogsModal(true)}
             className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all flex items-center space-x-2"
           >
@@ -533,7 +561,7 @@ const SuperAdminDashboard: React.FC = () => {
                   <span>High Stress</span>
                 </div>
               </div>
-              <div className="h-[250px] w-full">
+              <div className="h-[300px] w-full min-h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={wellbeingInsights.map(i => ({ name: i.org.name, score: i.avgStress }))}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -633,13 +661,6 @@ const SuperAdminDashboard: React.FC = () => {
                     >
                       <span className="font-bold text-sm">{isMaintenanceMode ? 'Disable Maintenance' : 'System Maintenance'}</span>
                       <div className={`w-2 h-2 rounded-full ${isMaintenanceMode ? 'bg-rose-500 animate-pulse' : 'bg-white/40'}`}></div>
-                    </button>
-                    <button 
-                      onClick={handleSeedData}
-                      className="w-full flex items-center justify-between p-4 bg-emerald-500 hover:bg-emerald-400 rounded-2xl transition-all group"
-                    >
-                      <span className="font-bold text-sm">Seed Sample Data</span>
-                      <Plus className="w-4 h-4 text-white/40" />
                     </button>
                     <button 
                       onClick={downloadAuditReport}
@@ -762,10 +783,71 @@ const SuperAdminDashboard: React.FC = () => {
 
       {/* Hub Requests Tab */}
       {activeTab === 'org-applications' && (
-        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-6">
+          {approvedOrgInfo && (
+            <div className="bg-emerald-50 border-2 border-emerald-200 rounded-[32px] p-8 animate-in zoom-in-95 duration-300">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white">
+                    <CheckCircle2 className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-emerald-900">Hub Approved Successfully!</h3>
+                    <p className="text-emerald-700/70 text-sm font-medium">Provide these details to the hub administrator so they can register.</p>
+                  </div>
+                </div>
+                <button onClick={() => setApprovedOrgInfo(null)} className="text-emerald-400 hover:text-emerald-600">
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white p-6 rounded-2xl border border-emerald-100 shadow-sm">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Hub Name</span>
+                  <span className="text-lg font-bold text-slate-900">{approvedOrgInfo.name}</span>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-emerald-100 shadow-sm">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Organisation Code</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-lg font-mono font-bold text-indigo-600">{approvedOrgInfo.code}</span>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(approvedOrgInfo.code);
+                        setSuccess('Code copied to clipboard!');
+                      }}
+                      className="text-slate-400 hover:text-indigo-600 transition-colors"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-emerald-100 shadow-sm">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Admin Security Code</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-lg font-mono font-bold text-rose-600">{approvedOrgInfo.adminSecret}</span>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(approvedOrgInfo.adminSecret);
+                        setSuccess('Secret copied to clipboard!');
+                      }}
+                      className="text-slate-400 hover:text-rose-600 transition-colors"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-8 p-4 bg-white/50 rounded-xl border border-emerald-100 text-xs text-emerald-800 font-medium leading-relaxed">
+                <strong>Next Steps:</strong> The hub admin should go to the <strong>Login</strong> page, select the <strong>Admin</strong> tab, and click <strong>"Signup"</strong>. They will need to enter their details, use the <strong>Organisation Code</strong> above, and provide the <strong>Admin Security Code</strong> to verify their authority.
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="p-8 border-b border-slate-50">
             <h2 className="text-xl font-black text-slate-900">Hub Onboarding Requests</h2>
-            <p className="text-slate-400 text-sm font-medium">Pending applications from organisations wanting to join the platform.</p>
+            <p className="text-slate-400 text-sm font-medium">Review and manage requests from new organisations (Hubs) wanting to join the platform.</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -831,7 +913,8 @@ const SuperAdminDashboard: React.FC = () => {
             </table>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
       {/* Organisations Tab */}
       {activeTab === 'organisations' && (
@@ -1065,7 +1148,7 @@ const SuperAdminDashboard: React.FC = () => {
                         prog.visibility === 'GLOBAL' ? 'bg-indigo-50 text-indigo-600' :
                         'bg-rose-50 text-rose-600'
                       }`}>
-                        {prog.visibility === 'PUBLIC' ? <Globe className="w-3 h-3 inline mr-1" /> : <Lock className="w-3 h-3 inline mr-1" />}
+                        {prog.visibility === 'PUBLIC' || prog.visibility === 'GLOBAL' ? <Globe className="w-3 h-3 inline mr-1" /> : <Lock className="w-3 h-3 inline mr-1" />}
                         {prog.visibility}
                       </span>
                     </td>
@@ -1324,7 +1407,7 @@ const SuperAdminDashboard: React.FC = () => {
           <div className="p-8 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-black text-slate-900">Support Desk</h2>
-              <p className="text-slate-400 text-sm font-medium">Manage incoming support requests from Hub Admins</p>
+              <p className="text-slate-400 text-sm font-medium">Manage and respond to support tickets submitted by users and organisation administrators.</p>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -1395,12 +1478,103 @@ const SuperAdminDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* Support Ticket Details Modal */}
+      {selectedTicket && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-indigo-600 p-10 text-white flex justify-between items-start">
+              <div>
+                <h2 className="text-2xl font-black tracking-tight">{selectedTicket.subject}</h2>
+                <p className="text-indigo-100 text-sm mt-1 font-medium">Ticket ID: {selectedTicket._id}</p>
+              </div>
+              <button onClick={() => setSelectedTicket(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <XCircle className="w-8 h-8" />
+              </button>
+            </div>
+            <div className="p-10 space-y-6">
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center font-black text-indigo-600 shadow-sm">
+                    {selectedTicket.userId?.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">{selectedTicket.userId?.name}</p>
+                    <p className="text-xs text-slate-400">{selectedTicket.userId?.email}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-bold text-slate-900">{selectedTicket.organisationId?.name}</p>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Hub Admin</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Message</label>
+                <div className="p-6 bg-slate-50 rounded-3xl text-slate-700 text-sm leading-relaxed border border-slate-100">
+                  {selectedTicket.message}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Priority</label>
+                  <div className={`px-4 py-3 rounded-2xl font-bold text-sm ${
+                    selectedTicket.priority === 'URGENT' ? 'bg-rose-50 text-rose-600' :
+                    selectedTicket.priority === 'HIGH' ? 'bg-amber-50 text-amber-600' :
+                    'bg-slate-50 text-slate-600'
+                  }`}>
+                    {selectedTicket.priority}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Status</label>
+                  <select 
+                    value={selectedTicket.status}
+                    onChange={(e) => handleUpdateTicket(selectedTicket._id, e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-indigo-500 outline-none transition-all font-bold text-sm text-slate-700"
+                  >
+                    <option value="OPEN">Open</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="RESOLVED">Resolved</option>
+                    <option value="CLOSED">Closed</option>
+                  </select>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setSelectedTicket(null)}
+                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Platform Settings Tab */}
       {activeTab === 'settings' && (
         <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="max-w-2xl">
             <h2 className="text-2xl font-black text-slate-900 mb-2">Platform Settings</h2>
             <p className="text-slate-400 text-sm font-medium mb-10">Configure global parameters and system behavior.</p>
+
+            {organisations.length <= 1 && (
+              <div className="mb-12 p-8 bg-indigo-50 rounded-3xl border border-indigo-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-indigo-900">System Initialization</h3>
+                  <p className="text-indigo-600/70 text-sm">Populate the platform with comprehensive sample data for testing.</p>
+                </div>
+                <button 
+                  onClick={handleSeedData}
+                  disabled={loading}
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center space-x-2 disabled:opacity-50"
+                >
+                  <Database className="w-5 h-5" />
+                  <span>{loading ? 'Seeding...' : 'Seed Sample Data'}</span>
+                </button>
+              </div>
+            )}
             
             <form onSubmit={handleUpdateSettings} className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

@@ -44,6 +44,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleLogin = (user: User, organisation: any, token?: string) => {
+    console.log('Handling login for:', user.email);
     const newState = { user, organisation, isAuthenticated: true };
     setAuth(newState);
     localStorage.setItem('whanauwell_auth', JSON.stringify(newState));
@@ -53,6 +54,7 @@ const App: React.FC = () => {
     if (token) {
       localStorage.setItem('whanauwell_token', token);
     }
+    console.log('Auth state updated and persisted');
   };
 
   const handleLogout = () => {

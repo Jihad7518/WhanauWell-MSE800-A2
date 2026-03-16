@@ -84,7 +84,7 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
       const data = await response.json();
       if (data.success) {
         fetchProgrammes();
-        if (selectedProgramme && selectedProgramme.id === id) {
+        if (selectedProgramme && selectedProgramme._id === id) {
           setSelectedProgramme(data.data);
         }
       }
@@ -168,7 +168,7 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="relative h-48 bg-indigo-600">
-              <img src={`https://picsum.photos/seed/${selectedProgramme.id}/800/400`} className="w-full h-full object-cover opacity-50" alt="programme" />
+              <img src={`https://picsum.photos/seed/${selectedProgramme._id}/800/400`} className="w-full h-full object-cover opacity-50" alt="programme" />
               <button onClick={() => setSelectedProgramme(null)} className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full transition-colors">
                 <X className="w-6 h-6" />
               </button>
@@ -202,7 +202,7 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
                   Coordinator: <span className="font-bold text-slate-800">{(selectedProgramme as any).coordinatorId?.name || 'Community Leader'}</span>
                 </div>
                 <button 
-                  onClick={() => handleJoinLeave(selectedProgramme.id, !selectedProgramme.participants.includes(user.id))}
+                  onClick={() => handleJoinLeave(selectedProgramme._id!, !selectedProgramme.participants.includes(user.id))}
                   disabled={selectedProgramme.participants.includes(user.id)}
                   className={`px-8 py-3 rounded-xl font-bold transition-all ${
                     selectedProgramme.participants.includes(user.id) 
@@ -253,7 +253,7 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {programmes.map((p) => (
-            <div key={p.id} onClick={() => setSelectedProgramme(p)} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all cursor-pointer group">
+            <div key={p._id} onClick={() => setSelectedProgramme(p)} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all cursor-pointer group">
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full uppercase tracking-wider mb-2">
@@ -263,7 +263,7 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
                 </div>
                 <div className="flex space-x-2">
                   {isCoordinator && (
-                    <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id); }} className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors">
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(p._id!); }} className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors">
                       <Trash2 className="w-5 h-5" />
                     </button>
                   )}
@@ -290,7 +290,7 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
                 <div className="flex -space-x-2">
                   {[1,2,3,4].map(i => (
                     <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center overflow-hidden">
-                      <img src={`https://picsum.photos/seed/${p.id}${i}/32/32`} alt="user" />
+                      <img src={`https://picsum.photos/seed/${p._id}${i}/32/32`} alt="user" />
                     </div>
                   ))}
                   <div className="w-8 h-8 rounded-full border-2 border-white bg-indigo-100 text-indigo-600 text-[10px] flex items-center justify-center font-bold">
@@ -299,7 +299,7 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
                 </div>
                 
                 <button 
-                  onClick={(e) => { e.stopPropagation(); handleJoinLeave(p.id, !p.participants.includes(user.id)); }}
+                  onClick={(e) => { e.stopPropagation(); handleJoinLeave(p._id!, !p.participants.includes(user.id)); }}
                   disabled={p.participants.includes(user.id)}
                   className={`px-6 py-2 rounded-xl font-bold transition-all ${
                     p.participants.includes(user.id) 

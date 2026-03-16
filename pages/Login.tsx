@@ -25,6 +25,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [name, setName] = useState('');
   const [orgCode, setOrgCode] = useState('');
   const [adminCode, setAdminCode] = useState('');
+  const [loginType, setLoginType] = useState<'MEMBER' | 'ADMIN'>('MEMBER');
   const [showAdminField, setShowAdminField] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,7 +39,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         if (data.success) {
           setAllowPublic(data.data.allowPublicRegistration);
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error("Settings fetch failed", e);
+      }
     };
     fetchSettings();
   }, []);
@@ -49,17 +52,24 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setLoading(true);
     
     const endpoint = isRegistering ? '/api/auth/register' : '/api/auth/login';
+    // For admin login, we don't strictly need orgCode if the email is unique globally (like Super Admin)
+    // but the backend checks it if provided.
     const payload = isRegistering 
-      ? { name, email, password, orgCode, adminCode }
-      : { email, password, orgCode };
+      ? { name, email, password, orgCode: loginType === 'MEMBER' ? orgCode : (orgCode || 'MASTER'), adminCode }
+      : { email, password, orgCode: loginType === 'MEMBER' ? orgCode : undefined };
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
       
+      clearTimeout(timeoutId);
       const data = await response.json();
       
       if (data.success) {
@@ -68,15 +78,24 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           navigate('/auth/login');
           setError('Registration successful! Please login.');
         } else {
-          onLogin(data.user, data.organisation, data.token);
-          navigate(redirectPath);
+          try {
+            onLogin(data.user, data.organisation, data.token);
+            navigate(redirectPath);
+          } catch (callbackError) {
+            console.error('Login callback error:', callbackError);
+            setError('Error finalizing login. Please try again.');
+          }
         }
       } else {
         setError(data.message || 'Authentication failed');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Auth error:', error);
-      setError('Connection error. Please try again.');
+      if (error.name === 'AbortError') {
+        setError('Login timed out. The server might be busy. Please try again.');
+      } else {
+        setError('Connection error. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -94,6 +113,21 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
           <h1 className="text-3xl font-bold">WhānauWell</h1>
           <p className="mt-2 text-indigo-100">Community Wellbeing & Stress Insight Platform</p>
+        </div>
+
+        <div className="flex border-b border-slate-100">
+          <button 
+            onClick={() => setLoginType('MEMBER')}
+            className={`flex-1 py-4 text-sm font-bold transition-colors ${loginType === 'MEMBER' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            Member {isRegistering ? 'Signup' : 'Login'}
+          </button>
+          <button 
+            onClick={() => setLoginType('ADMIN')}
+            className={`flex-1 py-4 text-sm font-bold transition-colors ${loginType === 'ADMIN' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            Admin {isRegistering ? 'Signup' : 'Login'}
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 space-y-4">
@@ -141,53 +175,46 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1 flex justify-between">
-              Organisation Invite Code
-              <span className={`text-[10px] font-bold uppercase ${allowPublic ? 'text-slate-400' : 'text-indigo-500'}`}>
-                {allowPublic ? 'Optional' : 'Required'}
-              </span>
-            </label>
-            <input
-              type="text"
-              required={!allowPublic}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-              placeholder="e.g. WHANAU-01"
-              value={orgCode}
-              onChange={(e) => setOrgCode(e.target.value)}
-            />
-            <p className="text-[10px] text-slate-400 mt-1 italic">
-              {allowPublic 
-                ? "Leave blank to join the global community, or enter your hub's code."
-                : "Ask your coordinator for your community's unique code."}
-            </p>
-          </div>
+          {loginType === 'MEMBER' && (
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1 flex justify-between">
+                Organisation Invite Code
+                <span className={`text-[10px] font-bold uppercase ${allowPublic ? 'text-slate-400' : 'text-indigo-500'}`}>
+                  {allowPublic ? 'Optional' : 'Required'}
+                </span>
+              </label>
+              <input
+                type="text"
+                required={!allowPublic}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                placeholder="e.g. WHANAU-01"
+                value={orgCode}
+                onChange={(e) => setOrgCode(e.target.value)}
+              />
+              <p className="text-[10px] text-slate-400 mt-1 italic">
+                {allowPublic 
+                  ? "Leave blank to join the global community, or enter your hub's code."
+                  : "Ask your coordinator for your community's unique code."}
+              </p>
+            </div>
+          )}
 
-          {isRegistering && (
+          {isRegistering && loginType === 'ADMIN' && (
             <div className="pt-2">
-              <button 
-                type="button"
-                onClick={() => setShowAdminField(!showAdminField)}
-                className="text-[10px] text-slate-500 hover:text-indigo-600 font-bold uppercase tracking-wider flex items-center"
-              >
-                {showAdminField ? '− Hide Admin Options' : '+ Register as Admin/Coordinator?'}
-              </button>
-              
-              {showAdminField && (
-                <div className="mt-2 p-4 bg-slate-50 rounded-xl border border-slate-100 animate-in fade-in slide-in-from-top-2">
-                  <label className="block text-xs font-bold text-slate-600 mb-1">Admin Security Code</label>
-                  <input
-                    type="password"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                    placeholder="Enter admin secret"
-                    value={adminCode}
-                    onChange={(e) => setAdminCode(e.target.value)}
-                  />
-                  <p className="text-[9px] text-slate-400 mt-1">
-                    Only required for Organisation Admins. Leave blank for Member access.
-                  </p>
-                </div>
-              )}
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <label className="block text-xs font-bold text-slate-600 mb-1">Admin Security Code</label>
+                <input
+                  type="password"
+                  required
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                  placeholder="Enter admin secret"
+                  value={adminCode}
+                  onChange={(e) => setAdminCode(e.target.value)}
+                />
+                <p className="text-[9px] text-slate-400 mt-1">
+                  Required to register as an Organisation Admin.
+                </p>
+              </div>
             </div>
           )}
 
