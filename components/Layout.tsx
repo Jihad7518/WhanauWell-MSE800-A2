@@ -91,8 +91,12 @@ const Layout: React.FC<LayoutProps> = ({ children, user, organisation, onLogout 
             to="/app/profile"
             className="w-full flex items-center space-x-3 mb-4 px-2 hover:bg-indigo-800 p-2 rounded-lg transition-colors text-left"
           >
-            <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-sm">
-              {user.name.charAt(0)}
+            <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-sm overflow-hidden border border-indigo-400">
+              {user.profilePicture ? (
+                <img src={user.profilePicture} alt={user.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                user.name.charAt(0)
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{user.name}</p>

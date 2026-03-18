@@ -897,15 +897,40 @@ async function startServer() {
   });
 
   app.patch("/api/me", authMiddleware, async (req: any, res) => {
-    const { name, email, password } = req.body;
+    const { name, email, password, profilePicture } = req.body;
     try {
       const updates: any = {};
       if (name) updates.name = name;
       if (email) updates.email = email;
       if (password) updates.passwordHash = await bcrypt.hash(password, 10);
+      if (profilePicture !== undefined) updates.profilePicture = profilePicture;
 
       const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true }).select('-passwordHash');
       res.json({ success: true, data: user });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  // Promote member to coordinator
+  app.patch("/api/members/:id/role", authMiddleware, tenantMiddleware, roleMiddleware(['ORG_ADMIN']), async (req: any, res) => {
+    try {
+      const { role } = req.body;
+      if (!['MEMBER', 'COORDINATOR'].includes(role)) {
+        return res.status(400).json({ success: false, message: 'Invalid role' });
+      }
+
+      const member = await User.findOneAndUpdate(
+        { _id: req.params.id, organisationId: req.tenantId },
+        { role },
+        { new: true }
+      ).select('-passwordHash');
+
+      if (!member) {
+        return res.status(404).json({ success: false, message: 'Member not found' });
+      }
+
+      res.json({ success: true, data: member });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }
@@ -964,6 +989,21 @@ async function startServer() {
         coordinatorId: req.user.id
       });
       res.status(201).json({ success: true, data: programme });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.patch("/api/programmes/:id", authMiddleware, roleMiddleware(['ORG_ADMIN', 'COORDINATOR']), tenantMiddleware, async (req: any, res) => {
+    try {
+      const { title, publicSummary, memberDetails, visibility, startDate, location, category } = req.body;
+      const programme = await Programme.findOneAndUpdate(
+        { _id: req.params.id, organisationId: req.tenantId },
+        { title, publicSummary, memberDetails, visibility, startDate, location, category },
+        { new: true }
+      );
+      if (!programme) return res.status(404).json({ success: false, message: 'Programme not found or access denied' });
+      res.json({ success: true, data: programme });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }

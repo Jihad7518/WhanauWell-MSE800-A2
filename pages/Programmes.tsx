@@ -13,6 +13,7 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
   const [programmes, setProgrammes] = useState<Programme[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editingProgramme, setEditingProgramme] = useState<Programme | null>(null);
   const [selectedProgramme, setSelectedProgramme] = useState<Programme | null>(null);
   const [newProgramme, setNewProgramme] = useState({
     title: '',
@@ -46,9 +47,14 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Attempting to save programme:', newProgramme);
+    setLoading(true);
     try {
-      const response = await fetch('/api/programmes', {
-        method: 'POST',
+      const url = editingProgramme ? `/api/programmes/${editingProgramme._id}` : '/api/programmes';
+      const method = editingProgramme ? 'PATCH' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
@@ -56,9 +62,11 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
         body: JSON.stringify(newProgramme)
       });
       const data = await response.json();
+      console.log('Save response:', data);
       if (data.success) {
         fetchProgrammes();
         setShowModal(false);
+        setEditingProgramme(null);
         setNewProgramme({ 
           title: '', 
           publicSummary: '', 
@@ -68,10 +76,29 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
           location: '', 
           category: 'Health & Wellbeing' 
         });
+      } else {
+        alert(data.message || 'Failed to save programme');
       }
     } catch (error) {
-      console.error('Create error:', error);
+      console.error('Save error:', error);
+      alert('Connection error. Please try again.');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleEdit = (p: Programme) => {
+    setEditingProgramme(p);
+    setNewProgramme({
+      title: p.title,
+      publicSummary: p.publicSummary,
+      memberDetails: p.memberDetails || '',
+      visibility: p.visibility as any,
+      startDate: p.startDate.split('T')[0],
+      location: p.location,
+      category: p.category
+    });
+    setShowModal(true);
   };
 
   const handleJoinLeave = async (id: string, isJoining: boolean) => {
@@ -117,10 +144,10 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="bg-indigo-600 p-6 text-white flex justify-between items-center">
               <div>
-                <h2 className="text-xl font-bold">Create New Programme</h2>
-                <p className="text-indigo-100 text-sm">Launch a new community initiative.</p>
+                <h2 className="text-xl font-bold">{editingProgramme ? 'Edit Programme' : 'Create New Programme'}</h2>
+                <p className="text-indigo-100 text-sm">{editingProgramme ? 'Update your community initiative.' : 'Launch a new community initiative.'}</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+              <button onClick={() => { setShowModal(false); setEditingProgramme(null); }} className="p-2 hover:bg-white/10 rounded-full transition-colors">
                 <X className="w-6 h-6" />
               </button>
             </div>
@@ -133,9 +160,22 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Public Summary (Short)</label>
                 <textarea required rows={2} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Short description for public browsing..." value={newProgramme.publicSummary} onChange={e => setNewProgramme({...newProgramme, publicSummary: e.target.value})} />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Member Details (Full)</label>
-                <textarea required rows={4} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Full details, resources, links (Markdown supported)..." value={newProgramme.memberDetails} onChange={e => setNewProgramme({...newProgramme, memberDetails: e.target.value})} />
+              <div className="space-y-1">
+                <label className="block text-sm font-semibold text-slate-700 flex items-center justify-between">
+                  <span>Member Details (Full)</span>
+                  <span className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">Participants Only</span>
+                </label>
+                <p className="text-[11px] text-slate-500 italic">
+                  Example: "Meeting at the main hall. Bring your own mat and water. Access code for the gym is 1234."
+                </p>
+                <textarea 
+                  required 
+                  rows={4} 
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                  placeholder="Full details, resources, links (Markdown supported)..." 
+                  value={newProgramme.memberDetails} 
+                  onChange={e => setNewProgramme({...newProgramme, memberDetails: e.target.value})} 
+                />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Visibility</label>
@@ -156,7 +196,17 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
               </div>
               <div className="flex space-x-3 pt-4">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-6 py-2.5 rounded-xl font-semibold text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
-                <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-100 transition-all">Create Programme</button>
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-100 transition-all flex items-center justify-center"
+                >
+                  {loading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    'Create Programme'
+                  )}
+                </button>
               </div>
             </form>
           </div>
@@ -224,7 +274,7 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
           <p className="text-slate-500">Manage and join local wellbeing initiatives.</p>
         </div>
         {isCoordinator && (
-          <button onClick={() => setShowModal(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-100 transition-all flex items-center space-x-2">
+          <button onClick={() => { setEditingProgramme(null); setShowModal(true); }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-100 transition-all flex items-center space-x-2">
             <Plus className="w-5 h-5" />
             <span>Create New Programme</span>
           </button>
@@ -256,20 +306,35 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
             <div key={p._id} onClick={() => setSelectedProgramme(p)} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all cursor-pointer group">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full uppercase tracking-wider mb-2">
-                    {p.category || 'Health & Wellbeing'}
-                  </span>
+                  <div className="flex items-center space-x-2 mb-2">
+                    <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full uppercase tracking-wider">
+                      {p.category || 'Health & Wellbeing'}
+                    </span>
+                    <span className={`inline-block px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider ${
+                      p.visibility === 'PUBLIC' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                    }`}>
+                      {p.visibility === 'PUBLIC' ? 'Public' : 'Organisation Only'}
+                    </span>
+                    {(p.organisationId as any)?._id === user.organisationId && (
+                      <span className="inline-block px-3 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-full uppercase tracking-wider">
+                        Our Org
+                      </span>
+                    )}
+                  </div>
                   <h3 className="text-xl font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{p.title}</h3>
+                  <p className="text-xs text-slate-400 font-medium mt-1">By {(p.organisationId as any)?.name || 'WhānauWell'}</p>
                 </div>
                 <div className="flex space-x-2">
-                  {isCoordinator && (
-                    <button onClick={(e) => { e.stopPropagation(); handleDelete(p._id!); }} className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors">
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                  {isCoordinator && (p.organisationId as any)?._id === user.organisationId && (
+                    <>
+                      <button onClick={(e) => { e.stopPropagation(); handleEdit(p); }} className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors">
+                        <Plus className="w-5 h-5 rotate-45" /> {/* Using Plus rotated as a simple edit icon for now, or just use a text or another icon */}
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(p._id!); }} className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors">
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </>
                   )}
-                  <button className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors">
-                    <ExternalLink className="w-5 h-5" />
-                  </button>
                 </div>
               </div>
               

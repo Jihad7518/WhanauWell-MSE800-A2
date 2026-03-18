@@ -34,12 +34,29 @@ const App: React.FC = () => {
   // Session recovery
   useEffect(() => {
     const savedAuth = localStorage.getItem('whanauwell_auth');
-    if (savedAuth) {
+    const token = localStorage.getItem('whanauwell_token');
+    
+    if (savedAuth && token) {
       try {
-        setAuth(JSON.parse(savedAuth));
+        const parsedAuth = JSON.parse(savedAuth);
+        setAuth({ ...parsedAuth, isAuthenticated: true });
+        
+        // Verify token validity
+        fetch('/api/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).then(res => {
+          if (res.status === 400 || res.status === 401) {
+            handleLogout();
+          }
+        }).catch(() => {
+          // Keep session if it's a connection error, but maybe log it
+        });
       } catch (e) {
         console.error("Failed to parse auth", e);
+        handleLogout();
       }
+    } else {
+      handleLogout();
     }
   }, []);
 

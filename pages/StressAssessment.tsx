@@ -48,13 +48,18 @@ const StressAssessment: React.FC = () => {
     setError('');
     
     try {
+      const responseArray = Object.entries(responses).map(([questionId, value]) => ({
+        questionId,
+        value
+      }));
+      
       const response = await fetch('/api/stress/assess', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
         },
-        body: JSON.stringify({ responses, consentGiven: consent })
+        body: JSON.stringify({ responses: responseArray, consentGiven: consent })
       });
       
       const data = await response.json();
@@ -186,11 +191,11 @@ const StressAssessment: React.FC = () => {
 
         <div className="space-y-3">
           {[
-            { label: 'Never', value: 1 },
-            { label: 'Rarely', value: 2 },
-            { label: 'Sometimes', value: 3 },
-            { label: 'Often', value: 4 },
-            { label: 'Very Often', value: 5 }
+            { label: 'Never', value: 0 },
+            { label: 'Almost Never', value: 1 },
+            { label: 'Sometimes', value: 2 },
+            { label: 'Fairly Often', value: 3 },
+            { label: 'Very Often', value: 4 }
           ].map((option) => (
             <button
               key={option.value}

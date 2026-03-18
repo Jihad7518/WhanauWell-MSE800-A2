@@ -12,26 +12,64 @@ const Members: React.FC<MembersProps> = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetchMembers = async () => {
-      try {
-        const response = await fetch('/api/members', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
-          }
-        });
-        const data = await response.json();
-        if (data.success) {
-          setMembers(data.data);
+  const [promoting, setPromoting] = useState<string | null>(null);
+
+  const fetchMembers = async () => {
+    try {
+      const response = await fetch('/api/members', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setMembers(data.data);
+      } else {
+        if (response.status === 400 || response.status === 401) {
+          setError('Your session has expired. Please log in again.');
         } else {
           setError(data.message || 'Failed to fetch members');
         }
-      } catch (err) {
-        setError('Connection error. Please try again.');
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (err) {
+      setError('Connection error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePromote = async (memberId: string, currentRole: string) => {
+    const newRole = currentRole === 'MEMBER' ? 'COORDINATOR' : 'MEMBER';
+    const confirmMsg = newRole === 'COORDINATOR' 
+      ? 'Are you sure you want to promote this member to Coordinator? They will be able to create and manage programmes.'
+      : 'Are you sure you want to demote this coordinator to Member?';
+    
+    if (!confirm(confirmMsg)) return;
+
+    setPromoting(memberId);
+    try {
+      const response = await fetch(`/api/members/${memberId}/role`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
+        },
+        body: JSON.stringify({ role: newRole })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setMembers(members.map(m => m._id === memberId ? data.data : m));
+      } else {
+        alert(data.message || 'Failed to update role');
+      }
+    } catch (err) {
+      alert('Connection error');
+    } finally {
+      setPromoting(null);
+    }
+  };
+
+  useEffect(() => {
     fetchMembers();
   }, []);
 
@@ -74,8 +112,12 @@ const Members: React.FC<MembersProps> = ({ user }) => {
                 <tr key={member._id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
-                        {member.name.charAt(0)}
+                      <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold overflow-hidden border border-indigo-50">
+                        {member.profilePicture ? (
+                          <img src={member.profilePicture} alt={member.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          member.name.charAt(0)
+                        )}
                       </div>
                       <div>
                         <p className="font-bold text-slate-800">{member.name}</p>
@@ -99,7 +141,25 @@ const Members: React.FC<MembersProps> = ({ user }) => {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="text-indigo-600 hover:text-indigo-900 font-semibold text-sm">Manage</button>
+                    {user.role === UserRole.ORG_ADMIN && 
+                     member.role !== UserRole.ORG_ADMIN && 
+                     member.role !== UserRole.SUPER_ADMIN && 
+                     member._id !== user.id && (
+                      <button
+                        onClick={() => handlePromote(member._id, member.role)}
+                        disabled={promoting === member._id}
+                        className="text-indigo-600 hover:text-indigo-900 font-semibold text-sm flex items-center justify-end space-x-1 ml-auto"
+                      >
+                        {promoting === member._id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Shield className="w-4 h-4" />
+                            <span>{member.role === 'MEMBER' ? 'Promote' : 'Demote'}</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

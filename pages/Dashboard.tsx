@@ -97,30 +97,46 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         { week: 'Week 4', count: 0 }
       ];
 
-  const StatCard = ({ title, value, icon: Icon, trend, color }: any) => (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start mb-4">
-        <div className={`p-3 rounded-xl ${color} bg-opacity-10`}>
-          <Icon className={`w-6 h-6 ${color.replace('bg-', 'text-')}`} />
+  const StatCard = ({ title, value, icon: Icon, trend, color, to }: any) => {
+    const CardContent = (
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-all h-full">
+        <div className="flex justify-between items-start mb-4">
+          <div className={`p-3 rounded-xl ${color} bg-opacity-10`}>
+            <Icon className={`w-6 h-6 ${color.replace('bg-', 'text-')}`} />
+          </div>
+          {trend && (
+            <span className="flex items-center text-emerald-600 text-xs font-bold bg-emerald-50 px-2 py-1 rounded-lg">
+              <TrendingUp className="w-3 h-3 mr-1" />
+              {trend}
+            </span>
+          )}
         </div>
-        {trend && (
-          <span className="flex items-center text-emerald-600 text-xs font-bold bg-emerald-50 px-2 py-1 rounded-lg">
-            <TrendingUp className="w-3 h-3 mr-1" />
-            {trend}
-          </span>
-        )}
+        <h3 className="text-slate-500 text-sm font-medium">{title}</h3>
+        <p className="text-2xl font-bold text-slate-900 mt-1">{value}</p>
       </div>
-      <h3 className="text-slate-500 text-sm font-medium">{title}</h3>
-      <p className="text-2xl font-bold text-slate-900 mt-1">{value}</p>
-    </div>
-  );
+    );
+
+    if (to) {
+      return <Link to={to} className="block h-full">{CardContent}</Link>;
+    }
+    return CardContent;
+  };
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Kia ora, {user.name}!</h1>
-          <p className="text-slate-500">Welcome to your WhānauWell dashboard.</p>
+        <div className="flex items-center space-x-4">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-2xl overflow-hidden border-2 border-white shadow-sm">
+            {user.profilePicture ? (
+              <img src={user.profilePicture} alt={user.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              user.name.charAt(0)
+            )}
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Kia ora, {user.name}!</h1>
+            <p className="text-slate-500">Welcome to your WhānauWell dashboard.</p>
+          </div>
         </div>
         <div className="flex space-x-3">
           {(user.role === 'ORG_ADMIN' || user.role === 'COORDINATOR') && (
@@ -147,6 +163,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           value={stats?.programmesCount || 0} 
           icon={Calendar} 
           color="bg-indigo-600" 
+          to="/app/programmes"
         />
         <StatCard 
           title="Community Members" 
@@ -154,18 +171,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           icon={Users} 
           trend="+12%" 
           color="bg-emerald-600" 
+          to="/app/members"
         />
         <StatCard 
           title="Wellbeing Checks" 
           value={stats?.stressStats?.total || 0} 
           icon={Activity} 
           color="bg-amber-600" 
+          to="/app/stress"
         />
         <StatCard 
           title="Avg. Stress Score" 
           value={stats?.stressStats?.averageScore?.toFixed(1) || '0.0'} 
           icon={BrainCircuit} 
           color="bg-rose-600" 
+          to="/app/stress"
         />
       </div>
 
@@ -304,7 +324,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
               <Clock className="w-5 h-5 mr-2 text-indigo-500" />
               Recent Activity
             </h2>
-            <button className="text-indigo-600 text-sm font-bold hover:text-indigo-800">View All</button>
+            <Link to="/app/programmes" className="text-indigo-600 text-sm font-bold hover:text-indigo-800">View All</Link>
           </div>
           <div className="divide-y divide-slate-50">
             {stats?.recentActivities?.length > 0 ? stats.recentActivities.map((activity: any, i: number) => (
