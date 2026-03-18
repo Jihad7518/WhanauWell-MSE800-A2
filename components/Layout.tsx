@@ -49,7 +49,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, organisation, onLogout 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: Object.values(UserRole), path: '/app/dashboard' },
     { id: 'admin', label: 'Platform Admin', icon: ShieldCheck, roles: [UserRole.SUPER_ADMIN], path: '/app/admin' },
-    { id: 'programmes', label: 'Programmes', icon: Calendar, roles: Object.values(UserRole), path: '/app/programmes' },
+    { id: 'my-programmes', label: 'My Programmes', icon: Calendar, roles: [UserRole.MEMBER, UserRole.COORDINATOR, UserRole.ORG_ADMIN], path: '/app/my-programmes' },
+    { id: 'programmes', label: 'Browse Hub', icon: Megaphone, roles: Object.values(UserRole), path: '/app/programmes' },
     { id: 'stress', label: 'Stress Check', icon: Activity, roles: [UserRole.MEMBER, UserRole.COORDINATOR, UserRole.ORG_ADMIN], path: '/app/stress' },
     { id: 'members', label: 'Members', icon: Users, roles: [UserRole.ORG_ADMIN, UserRole.COORDINATOR], path: '/app/members' },
   ];

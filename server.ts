@@ -547,6 +547,18 @@ async function startServer() {
     }
   });
 
+  app.get("/api/my-programmes", authMiddleware, async (req: any, res) => {
+    try {
+      const programmes = await Programme.find({ participants: req.user.id })
+        .populate('organisationId', 'name')
+        .populate('coordinatorId', 'name')
+        .sort({ startDate: 1 });
+      res.json({ success: true, data: programmes });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
   // Hub Admin Application Management
   app.get("/api/admin/applications", authMiddleware, tenantMiddleware, roleMiddleware(['ORG_ADMIN']), async (req: any, res) => {
     try {

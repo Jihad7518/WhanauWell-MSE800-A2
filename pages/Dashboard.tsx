@@ -35,6 +35,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
   const [stats, setStats] = useState<any>(null);
   const [applications, setApplications] = useState<any[]>([]);
+  const [myProgrammes, setMyProgrammes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Rejection Modal State
@@ -59,6 +60,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
           const appsData = await appsRes.json();
           if (appsData.success) setApplications(appsData.data);
         }
+
+        // Fetch enrolled programmes for everyone (members see their own, admins see their own too if any)
+        const myProgsRes = await fetch('/api/my-programmes', {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+        });
+        const myProgsData = await myProgsRes.json();
+        if (myProgsData.success) setMyProgrammes(myProgsData.data);
       } catch (error) {
         console.error('Fetch data error:', error);
       } finally {
@@ -367,6 +375,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
                           <button 
                             onClick={() => handleApproveApplication(app._id)}
                             className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                            title="Approves and simulates sending invite code via email"
                           >
                             Approve
                           </button>
@@ -386,7 +395,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
                           ) : (
                             <X className="w-4 h-4 mr-1.5" />
                           )}
-                          {app.status} {app.status === 'APPROVED' && `(Code: ${app.inviteCodeSent})`}
+                          {app.status} {app.status === 'APPROVED' && (
+                            <span className="flex items-center ml-1">
+                              (Code: {app.inviteCodeSent})
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard.writeText(app.inviteCodeSent || '');
+                                  alert('Invite code copied to clipboard!');
+                                }}
+                                className="ml-1 p-1 hover:bg-emerald-100 rounded transition-colors"
+                                title="Copy Invite Code"
+                              >
+                                <Plus className="w-3 h-3 rotate-45" /> {/* Using Plus as a simple icon for now */}
+                              </button>
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
@@ -430,6 +454,49 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {myProgrammes.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-emerald-50/30">
+            <h2 className="font-bold text-slate-900 flex items-center">
+              <Calendar className="w-5 h-5 mr-2 text-emerald-500" />
+              My Enrolled Programmes
+              <span className="ml-2 px-2 py-0.5 bg-emerald-600 text-white text-[10px] rounded-full">
+                {myProgrammes.length} Active
+              </span>
+            </h2>
+            <Link to="/app/my-programmes" className="text-emerald-600 text-sm font-bold hover:text-emerald-800">View Schedule</Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
+            {myProgrammes.slice(0, 3).map((prog) => (
+              <Link 
+                key={prog._id} 
+                to="/app/my-programmes"
+                className="group p-4 rounded-xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{prog.category || 'Health'}</span>
+                  <ArrowRight className="w-3 h-3 text-slate-300 group-hover:text-emerald-500 transition-colors" />
+                </div>
+                <h3 className="font-bold text-slate-800 group-hover:text-emerald-700 transition-colors line-clamp-1">{prog.title}</h3>
+                <div className="flex items-center mt-2 text-xs text-slate-500">
+                  <Clock className="w-3 h-3 mr-1 text-emerald-400" />
+                  {new Date(prog.startDate).toLocaleDateString()}
+                </div>
+              </Link>
+            ))}
+            {myProgrammes.length > 3 && (
+              <Link 
+                to="/app/my-programmes"
+                className="flex items-center justify-center p-4 rounded-xl border border-dashed border-slate-200 text-slate-400 hover:text-emerald-600 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all group"
+              >
+                <span className="text-sm font-bold">+{myProgrammes.length - 3} more programmes</span>
+                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            )}
+          </div>
         </div>
       )}
 

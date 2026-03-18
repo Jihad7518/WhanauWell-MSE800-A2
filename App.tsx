@@ -8,6 +8,7 @@ import Programmes from './pages/Programmes';
 import StressAssessment from './pages/StressAssessment';
 import Members from './pages/Members';
 import Profile from './pages/Profile';
+import MyProgrammes from './pages/MyProgrammes';
 import OrganisationProfile from './pages/OrganisationProfile';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import Layout from './components/Layout';
@@ -138,6 +139,7 @@ const App: React.FC = () => {
 
           {/* Protected App Routes */}
           <Route path="/app/dashboard" element={<ProtectedRoute><Dashboard user={auth.user!} organisation={auth.organisation!} /></ProtectedRoute>} />
+          <Route path="/app/my-programmes" element={<ProtectedRoute><MyProgrammes user={auth.user!} /></ProtectedRoute>} />
           <Route path="/app/programmes" element={<ProtectedRoute><Programmes user={auth.user!} /></ProtectedRoute>} />
           <Route path="/app/stress" element={<ProtectedRoute><StressAssessment /></ProtectedRoute>} />
           <Route path="/app/members" element={<ProtectedRoute><Members user={auth.user!} /></ProtectedRoute>} />
