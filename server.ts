@@ -41,7 +41,15 @@ async function startServer() {
       // Refresh masterOrg and superAdminId if needed
       masterOrg = await Organisation.findOne({ code: 'MASTER' });
       if (!masterOrg) {
-        masterOrg = await Organisation.create({ name: 'WhānauWell Global', code: 'MASTER' });
+        masterOrg = await Organisation.create({ 
+          name: 'WhānauWell Global', 
+          code: 'MASTER',
+          description: 'WhānauWell Global is the central hub for the WhānauWell platform, providing oversight and support for all community hubs.',
+          mission: 'To provide the digital infrastructure for community wellbeing across the globe.',
+          history: 'WhānauWell was born out of a need for ethical, culturally appropriate wellbeing tools for indigenous and local communities.',
+          trackRecord: 'Powering over 50 community hubs and supporting 10,000+ whānau members.',
+          foundedAt: new Date('2023-01-01')
+        });
         console.log("Re-created MASTER organisation");
       }
 
@@ -59,38 +67,73 @@ async function startServer() {
       }
       superAdminId = superAdmin._id;
 
-      // Clear existing data to ensure a clean slate
-      await Programme.deleteMany({});
-      await SupportTicket.deleteMany({});
-      await MembershipApplication.deleteMany({});
-      await OrganisationApplication.deleteMany({});
-      
-      // Delete all organisations except the Master Hub
-      await Organisation.deleteMany({ _id: { $ne: masterOrg._id } });
-      
-      // Delete all users except the current Super Admin
-      await User.deleteMany({ _id: { $ne: superAdminId } });
-
-      console.log('Cleared existing programmes, tickets, applications, non-master orgs, and non-admin users');
-
-      // 1. Ensure Organisations exist
+      // 1. Ensure Organisations exist and are updated
       const orgData = [
-        { name: 'Waitaha Health Hub', code: 'WAITAHA-2026' },
-        { name: 'Te Tai Tokerau Wellness', code: 'TTT-WELL' },
-        { name: 'Auckland Community Care', code: 'AKL-COMM' },
-        { name: 'Hutt Valley Whānau Trust', code: 'HUTT-TRUST' }
+        { 
+          name: 'Waitaha Health Hub', 
+          code: 'WAITAHA-2026',
+          description: 'Waitaha Health Hub is a community-led initiative dedicated to improving the wellbeing of whānau in the Canterbury region through holistic care and digital innovation.',
+          mission: 'To empower whānau through accessible health services, community-driven support, and ethical data sovereignty.',
+          history: 'Founded in 2020 by a group of local health practitioners and Māori community leaders, Waitaha Health Hub has grown to support over 2,000 members across the Canterbury region.',
+          trackRecord: 'Successfully launched 15 community programmes, reduced local stress scores by 15% in 2025, and established a network of 50+ local health volunteers.',
+          foundedAt: new Date('2020-01-01'),
+          logo: 'https://images.unsplash.com/photo-1505751172107-5739a00723b5?auto=format&fit=crop&q=80&w=200&h=200'
+        },
+        { 
+          name: 'Te Tai Tokerau Wellness', 
+          code: 'TTT-WELL',
+          description: 'Providing essential wellness services to the Northland community with a focus on Māori health outcomes and traditional healing practices.',
+          mission: 'To provide accessible, culturally appropriate wellness services for all whānau in Te Tai Tokerau, grounded in Tikanga Māori.',
+          history: 'Started as a small mobile clinic in 2021, we have expanded into a full-service wellness hub serving the entire Northland region with both digital and physical support.',
+          trackRecord: 'Over 5,000 health checks performed, 50+ community workshops held, and recognised as a leading provider of rural health services in the North Island.',
+          foundedAt: new Date('2021-03-15'),
+          logo: 'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=200&h=200'
+        },
+        { 
+          name: 'Auckland Community Care', 
+          code: 'AKL-COMM',
+          description: 'Auckland Community Care focuses on urban wellbeing, social support, and mental health for diverse communities in the greater Auckland region.',
+          mission: 'Building stronger, healthier urban communities through connection, care, and innovative social support systems.',
+          history: 'Established in 2018 to address the growing need for social support in Auckland\'s rapidly changing urban landscape, focusing on youth and migrant communities.',
+          trackRecord: 'Recognised as a leading community provider with a 95% member satisfaction rate and over 10,000 successful community interventions.',
+          foundedAt: new Date('2018-06-20'),
+          logo: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&q=80&w=200&h=200'
+        },
+        { 
+          name: 'Hutt Valley Whānau Trust', 
+          code: 'HUTT-TRUST',
+          description: 'The Hutt Valley Whānau Trust is committed to supporting families through education, health, and social services, bridging the gap between generations.',
+          mission: 'Supporting whānau to thrive through integrated community services and lifelong learning opportunities.',
+          history: 'A legacy organisation with over 20 years of experience in the Hutt Valley, the Trust digitised its operations through WhānauWell in 2024 to better serve the modern needs of our whānau.',
+          trackRecord: 'Supported three generations of whānau, managed over 100 community projects, and awarded the Community Excellence Award in 2023.',
+          foundedAt: new Date('2004-11-10'),
+          logo: 'https://images.unsplash.com/photo-1527689368864-3a821dbccc34?auto=format&fit=crop&q=80&w=200&h=200'
+        },
+        { 
+          name: 'Andre Hub', 
+          code: 'ANDRE-HUB',
+          description: 'Andre Hub is a vibrant community centre dedicated to holistic wellbeing, cultural expression, and social connection through music, dance, and movement.',
+          mission: 'To inspire joy, health, and belonging through the rhythmic arts and inclusive community connection.',
+          history: 'Founded by Andre and a group of passionate community leaders in 2022, Andre Hub has quickly grown into a vital sanctuary for cultural expression and mental wellbeing in the region.',
+          trackRecord: 'Successfully launched 15+ community programmes, supported over 500 whānau, and established a unique model for movement-based therapy.',
+          foundedAt: new Date('2022-05-12'),
+          logo: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&q=80&w=200&h=200'
+        }
       ];
 
       const orgs: any = {};
       orgs['MASTER'] = masterOrg;
 
       for (const o of orgData) {
-        let org = await Organisation.findOne({ code: o.code });
-        if (!org) {
-          org = await Organisation.create(o);
-          console.log(`Created Org: ${o.name}`);
+        const org = await Organisation.findOneAndUpdate(
+          { code: o.code },
+          { $set: o },
+          { upsert: true, new: true }
+        );
+        if (org) {
+          console.log(`Ensured Org: ${o.name} (${o.code})`);
+          orgs[o.code] = org;
         }
-        orgs[o.code] = org;
       }
 
       // 2. Seed diverse users for each org
@@ -104,24 +147,29 @@ async function startServer() {
         { name: 'Sam Taylor', email: 'sam@waitaha.org', role: 'MEMBER', code: 'WAITAHA-2026' },
         { name: 'Aroha Smith', email: 'aroha@ttt.org', role: 'MEMBER', code: 'TTT-WELL' },
         { name: 'David Chen', email: 'david@akl.org', role: 'MEMBER', code: 'AKL-COMM' },
-        { name: 'Maria Garcia', email: 'maria@hutt.org', role: 'MEMBER', code: 'HUTT-TRUST' }
+        { name: 'Maria Garcia', email: 'maria@hutt.org', role: 'MEMBER', code: 'HUTT-TRUST' },
+        { name: 'Andre Admin', email: 'andre@andrehub.org', role: 'ORG_ADMIN', code: 'ANDRE-HUB' }
       ];
 
       const seededUsers: any[] = [];
       for (const u of usersToSeed) {
-        let user = await User.findOne({ email: u.email });
-        if (!user) {
-          const hash = await bcrypt.hash('Password123!', 10);
-          user = await User.create({
-            name: u.name,
-            email: u.email,
-            passwordHash: hash,
-            role: u.role,
-            organisationId: orgs[u.code]?._id
-          });
-          console.log(`Created user: ${u.email}`);
+        const hash = await bcrypt.hash('Password123!', 10);
+        const user = await User.findOneAndUpdate(
+          { email: u.email },
+          { 
+            $set: {
+              name: u.name,
+              role: u.role,
+              organisationId: orgs[u.code]?._id,
+              passwordHash: hash // Reset password to ensure it works
+            }
+          },
+          { upsert: true, new: true }
+        );
+        if (user) {
+          console.log(`Ensured user: ${u.email}`);
+          seededUsers.push(user);
         }
-        seededUsers.push(user);
       }
 
       // 3. Seed Hub Requests
@@ -136,9 +184,9 @@ async function startServer() {
       const programmesToSeed = [
         // Waitaha
         {
-          title: 'Yoga in the Park',
-          publicSummary: 'Join us for a relaxing yoga session every Saturday morning at Hagley Park. Open to all levels.',
-          memberDetails: 'Meeting point: North Hagley Park, near the band rotunda. Bring your own mat.',
+          title: 'Whānau Yoga & Mindfulness',
+          publicSummary: 'A holistic yoga and mindfulness programme designed for all ages and abilities, focusing on stress reduction and physical wellbeing.',
+          memberDetails: 'Sessions are held every Saturday at 9:00 AM. Please bring a mat and water. Location: North Hagley Park, near the band rotunda.',
           visibility: 'PUBLIC',
           startDate: new Date(),
           location: 'Hagley Park, Christchurch',
@@ -147,9 +195,9 @@ async function startServer() {
           coordinatorId: superAdminId
         },
         {
-          title: 'Waitaha Private Wellness',
-          publicSummary: 'Exclusive wellness programme for Waitaha Health Hub members.',
-          memberDetails: 'Confidential health assessments and personalized plans.',
+          title: 'Waitaha Mental Health Support',
+          publicSummary: 'Confidential one-on-one and group support sessions for members dealing with stress, anxiety, or life transitions.',
+          memberDetails: 'Bookings are essential. Private rooms are available at the Waitaha Centre. 24/7 crisis support line included for members.',
           visibility: 'ORG_ONLY',
           startDate: new Date(),
           location: 'Waitaha Centre',
@@ -157,22 +205,11 @@ async function startServer() {
           organisationId: orgs['WAITAHA-2026']?._id,
           coordinatorId: superAdminId
         },
-        {
-          title: 'Global Health Initiative',
-          publicSummary: 'A platform-wide health initiative for all communities.',
-          memberDetails: 'Access to global health resources and webinars.',
-          visibility: 'GLOBAL',
-          startDate: new Date(),
-          location: 'Online',
-          category: 'General Health',
-          organisationId: masterOrg?._id,
-          coordinatorId: superAdminId
-        },
         // TTT
         {
-          title: 'Healthy Cooking for Families',
-          publicSummary: 'Learn how to cook nutritious and affordable meals for your whānau.',
-          memberDetails: 'Recipe book and meal planner available in the members portal.',
+          title: 'Traditional Māori Nutrition',
+          publicSummary: 'Learn about traditional Māori food practices and how to integrate them into a modern, healthy lifestyle for your whānau.',
+          memberDetails: 'Includes hands-on cooking workshops, recipe books, and seasonal gardening guides. Held at the community kitchen.',
           visibility: 'PUBLIC',
           startDate: new Date(),
           location: 'Community Kitchen',
@@ -181,9 +218,9 @@ async function startServer() {
           coordinatorId: superAdminId
         },
         {
-          title: 'Te Reo Māori Immersion',
-          publicSummary: 'Deep dive into Te Reo Māori and cultural practices.',
-          memberDetails: 'Intensive weekend workshops and daily practice guides.',
+          title: 'Te Reo Māori for Wellbeing',
+          publicSummary: 'Exploring the connection between language, culture, and mental health through immersive Te Reo Māori sessions.',
+          memberDetails: 'Intensive weekend wānanga and daily digital practice guides. Open to all proficiency levels within the organisation.',
           visibility: 'ORG_ONLY',
           startDate: new Date(),
           location: 'Te Tai Tokerau Marae',
@@ -193,9 +230,9 @@ async function startServer() {
         },
         // Auckland
         {
-          title: 'Youth Mentorship Programme',
-          publicSummary: 'Connecting local youth with experienced mentors for career and life guidance.',
-          memberDetails: 'Mentors and mentees meet bi-weekly. Training materials provided.',
+          title: 'Urban Youth Mentorship',
+          publicSummary: 'A structured mentorship programme connecting urban youth with professional mentors to build career pathways and life skills.',
+          memberDetails: 'Monthly networking events, weekly check-ins, and access to the Auckland Central Hub resource library.',
           visibility: 'PUBLIC',
           startDate: new Date(),
           location: 'Auckland Central Hub',
@@ -204,21 +241,21 @@ async function startServer() {
           coordinatorId: superAdminId
         },
         {
-          title: 'Auckland Business Wellbeing',
-          publicSummary: 'Supporting local business owners with mental health and stress management.',
-          memberDetails: 'Private peer support groups and professional coaching.',
+          title: 'Migrant Support Network',
+          publicSummary: 'Providing social connection and practical support for new migrants to the Auckland region, focusing on community integration.',
+          memberDetails: 'Language support, legal advice clinics, and social mixers. Private forum access for members.',
           visibility: 'ORG_ONLY',
           startDate: new Date(),
           location: 'Auckland CBD',
-          category: 'Mental Health',
+          category: 'Social Support',
           organisationId: orgs['AKL-COMM']?._id,
           coordinatorId: superAdminId
         },
         // Hutt
         {
-          title: 'Digital Literacy for Seniors',
-          publicSummary: 'Helping our elders navigate the digital world safely and confidently.',
-          memberDetails: 'One-on-one support available. Bring your own device or use our tablets.',
+          title: 'Digital Empowerment for Kaumātua',
+          publicSummary: 'Helping our elders navigate the digital world safely, from connecting with whānau online to accessing digital health services.',
+          memberDetails: 'Small group sessions with patient tutors. Devices provided if needed. Held at the Hutt Valley Library.',
           visibility: 'PUBLIC',
           startDate: new Date(),
           location: 'Hutt Valley Library',
@@ -226,15 +263,16 @@ async function startServer() {
           organisationId: orgs['HUTT-TRUST']?._id,
           coordinatorId: superAdminId
         },
+        // Andre Hub
         {
-          title: 'Hutt Valley Community Garden',
-          publicSummary: 'Join our collective effort to grow fresh produce for the community.',
-          memberDetails: 'Tool sharing and garden plot assignments.',
-          visibility: 'ORG_ONLY',
+          title: 'Samba Dance for Wellbeing',
+          publicSummary: 'Experience the joy and energy of Samba! A high-energy dance programme that improves cardiovascular health and boosts mood.',
+          memberDetails: 'Weekly classes on Wednesdays at 6:00 PM. No experience necessary. Wear comfortable clothing.',
+          visibility: 'PUBLIC',
           startDate: new Date(),
-          location: 'Lower Hutt',
-          category: 'Sustainability',
-          organisationId: orgs['HUTT-TRUST']?._id,
+          location: 'Andre Hub Main Studio',
+          category: 'Physical Health',
+          organisationId: orgs['ANDRE-HUB']?._id,
           coordinatorId: superAdminId
         }
       ];
@@ -244,30 +282,43 @@ async function startServer() {
           console.warn(`Skipping programme ${p.title} due to missing org or coordinator`);
           continue;
         }
-        const programme = await Programme.create(p);
-        // Add some participants
-        const participants = seededUsers
-          .filter(() => Math.random() > 0.4)
-          .map(u => u._id);
-        
-        programme.participants = participants;
-        await programme.save();
+        await Programme.findOneAndUpdate(
+          { title: p.title, organisationId: p.organisationId },
+          { $set: p },
+          { upsert: true, new: true }
+        );
       }
-      console.log(`Seeded ${programmesToSeed.length} Programmes with participants`);
+      console.log(`Ensured ${programmesToSeed.length} Programmes`);
 
       // 5. Seed Support Tickets
-      await SupportTicket.create([
+      const ticketsToSeed = [
         { subject: 'Unable to invite new members', userId: superAdminId, organisationId: orgs['WAITAHA-2026']?._id, priority: 'HIGH', status: 'OPEN', message: 'I am getting an error when trying to generate new invite codes.' },
         { subject: 'Feature Request: Mobile App', userId: superAdminId, organisationId: orgs['TTT-WELL']?._id, priority: 'LOW', status: 'OPEN', message: 'Our members are asking if there is a mobile app available.' },
         { subject: 'Login Issue', userId: superAdminId, organisationId: orgs['WAITAHA-2026']?._id, priority: 'URGENT', status: 'IN_PROGRESS', message: 'Some users are reporting they cannot log in after the last update.' }
-      ]);
+      ];
+
+      for (const t of ticketsToSeed) {
+        await SupportTicket.findOneAndUpdate(
+          { subject: t.subject, userId: t.userId },
+          { $set: t },
+          { upsert: true, new: true }
+        );
+      }
 
       // 6. Seed Membership Applications
-      await MembershipApplication.deleteMany({});
-      await MembershipApplication.create([
+      const applicationsToSeed = [
         { name: 'Alice Cooper', email: 'alice@example.com', organisationId: orgs['WAITAHA-2026']?._id, message: 'I would like to join the Waitaha Health Hub to access the yoga sessions.', status: 'PENDING' },
-        { name: 'Bob Marley', email: 'bob@example.com', organisationId: orgs['TTT-WELL']?._id, message: 'Interested in the healthy cooking workshops.', status: 'PENDING' }
-      ]);
+        { name: 'Bob Marley', email: 'bob@example.com', organisationId: orgs['TTT-WELL']?._id, message: 'Interested in the healthy cooking workshops.', status: 'PENDING' },
+        { name: 'Test Applicant', email: 'test@example.com', phoneNumber: '027 111 2222', organisationId: orgs['ANDRE-HUB']?._id, howDidYouHear: 'Word of mouth', idType: 'Driver License', documentId: 'DL-54321', reason: 'I love samba and want to be part of the community hub.', status: 'PENDING' }
+      ];
+
+      for (const a of applicationsToSeed) {
+        await MembershipApplication.findOneAndUpdate(
+          { email: a.email, organisationId: a.organisationId },
+          { $set: a },
+          { upsert: true, new: true }
+        );
+      }
 
       await logEvent('SYSTEM_SEED', 'Platform data seeded successfully', 'SUCCESS', masterOrg?._id, superAdminId);
 
@@ -309,7 +360,12 @@ async function startServer() {
     if (!masterOrg) {
       masterOrg = await Organisation.create({
         name: 'WhānauWell Global',
-        code: 'MASTER'
+        code: 'MASTER',
+        description: 'WhānauWell Global is the central hub for the WhānauWell platform, providing oversight and support for all community hubs.',
+        mission: 'To provide the digital infrastructure for community wellbeing across the globe.',
+        history: 'WhānauWell was born out of a need for ethical, culturally appropriate wellbeing tools for indigenous and local communities.',
+        trackRecord: 'Powering over 50 community hubs and supporting 10,000+ whānau members.',
+        foundedAt: new Date('2023-01-01')
       });
       console.log("Seeded MASTER organisation");
     }
@@ -331,18 +387,9 @@ async function startServer() {
       superAdminId = superAdmin._id;
     }
 
-    // Auto-seed more data if database is empty or has very few items
-    const programmeCount = await Programme.countDocuments();
-    const orgCount = await Organisation.countDocuments();
-    
-    console.log(`Startup check: ${orgCount} organisations, ${programmeCount} programmes found.`);
-    
-    if (programmeCount < 5 || orgCount < 2) {
-      console.log("Database looks empty or incomplete. Triggering auto-seed...");
-      await seedPlatformData();
-    } else {
-      console.log("Database already contains sufficient data. Skipping auto-seed.");
-    }
+    // Always ensure sample data is up to date
+    console.log("Ensuring sample data is up to date...");
+    await seedPlatformData();
   } catch (err) {
     console.error("MongoDB connection error:", err);
   }
@@ -353,6 +400,37 @@ async function startServer() {
   });
 
   // Public Routes
+  app.get("/api/public/organisations", async (req, res) => {
+    try {
+      // Filter out the MASTER hub from public partner list
+      const organisations = await Organisation.find({ code: { $ne: 'MASTER' } }, 'name logo description trackRecord foundedAt');
+      res.json({ success: true, data: organisations });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.get("/api/public/organisations/:id", async (req, res) => {
+    try {
+      const organisation = await Organisation.findById(req.params.id);
+      if (!organisation) return res.status(404).json({ success: false, message: 'Organisation not found' });
+      
+      const programmeCount = await Programme.countDocuments({ organisationId: organisation._id, visibility: 'PUBLIC' });
+      const memberCount = await User.countDocuments({ organisationId: organisation._id });
+
+      res.json({ 
+        success: true, 
+        data: {
+          ...organisation.toObject(),
+          programmeCount,
+          memberCount
+        } 
+      });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
   app.get("/api/public/programmes", async (req, res) => {
     try {
       const programmes = await Programme.find({ visibility: 'PUBLIC' }).populate('organisationId', 'name');
@@ -409,16 +487,51 @@ async function startServer() {
 
   app.post("/api/public/apply", async (req, res) => {
     try {
-      const { name, email, organisationId, message } = req.body;
+      const { name, email, organisationId, message, documentId, idType, reason } = req.body;
       const application = await MembershipApplication.create({
         name,
         email,
         organisationId,
         message,
+        documentId,
+        idType,
+        reason,
         status: 'PENDING'
       });
       await logEvent('MEMBERSHIP_APPLIED', `New membership application from ${name} (${email})`, 'INFO', organisationId);
+      
+      // Simulate email notification to admins
+      console.log(`[EMAIL SIMULATION] To: org-admin@${organisationId}.com, Subject: New Membership Application, Body: ${name} has applied to join your organisation.`);
+      
       res.json({ success: true, data: application });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  // Organisation Profile Routes (for Org Admins)
+  app.get("/api/organisation/me", authMiddleware, roleMiddleware(['ORG_ADMIN', 'COORDINATOR']), tenantMiddleware, async (req: any, res) => {
+    try {
+      const organisation = await Organisation.findById(req.tenantId);
+      if (!organisation) return res.status(404).json({ success: false, message: 'Organisation not found' });
+      res.json({ success: true, data: organisation });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.patch("/api/organisation/me", authMiddleware, roleMiddleware(['ORG_ADMIN']), tenantMiddleware, async (req: any, res) => {
+    try {
+      const { name, description, mission, history, logo, impactStories, trackRecord, foundedAt } = req.body;
+      const organisation = await Organisation.findByIdAndUpdate(
+        req.tenantId,
+        { name, description, mission, history, logo, impactStories, trackRecord, foundedAt },
+        { new: true }
+      );
+      if (!organisation) return res.status(404).json({ success: false, message: 'Organisation not found' });
+      
+      await logEvent('ORG_PROFILE_UPDATED', `Organisation profile updated for ${organisation.name}`, 'SUCCESS', organisation._id, req.user.id);
+      res.json({ success: true, data: organisation });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }
@@ -435,16 +548,16 @@ async function startServer() {
   });
 
   // Hub Admin Application Management
-  app.get("/api/admin/applications", authMiddleware, roleMiddleware(['ORG_ADMIN']), async (req: any, res) => {
+  app.get("/api/admin/applications", authMiddleware, tenantMiddleware, roleMiddleware(['ORG_ADMIN']), async (req: any, res) => {
     try {
-      const applications = await MembershipApplication.find({ organisationId: req.user.organisationId }).sort({ createdAt: -1 });
+      const applications = await MembershipApplication.find({ organisationId: req.tenantId }).sort({ createdAt: -1 });
       res.json({ success: true, data: applications });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }
   });
 
-  app.put("/api/admin/applications/:id/approve", authMiddleware, roleMiddleware(['ORG_ADMIN']), async (req: any, res) => {
+  app.put("/api/admin/applications/:id/approve", authMiddleware, tenantMiddleware, roleMiddleware(['ORG_ADMIN']), async (req: any, res) => {
     try {
       const application = await MembershipApplication.findById(req.params.id);
       if (!application) return res.status(404).json({ success: false, message: 'Application not found' });
@@ -458,7 +571,31 @@ async function startServer() {
 
       await logEvent('MEMBERSHIP_APPROVED', `Membership application for ${application.name} approved`, 'SUCCESS', organisation._id, req.user.id);
       
+      // Simulate email notification to applicant
+      console.log(`[EMAIL SIMULATION] To: ${application.email}, Subject: Membership Approved, Body: Your application to join ${organisation.name} has been approved. Your invite code is: ${organisation.code}`);
+      
       res.json({ success: true, message: 'Application approved and code assigned', code: organisation.code });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.put("/api/admin/applications/:id/reject", authMiddleware, tenantMiddleware, roleMiddleware(['ORG_ADMIN']), async (req: any, res) => {
+    try {
+      const { reason } = req.body;
+      const application = await MembershipApplication.findById(req.params.id);
+      if (!application) return res.status(404).json({ success: false, message: 'Application not found' });
+      
+      application.status = 'REJECTED';
+      application.rejectedReason = reason;
+      await application.save();
+
+      await logEvent('MEMBERSHIP_REJECTED', `Membership application for ${application.name} rejected`, 'INFO', application.organisationId, req.user.id);
+      
+      // Simulate email notification to applicant
+      console.log(`[EMAIL SIMULATION] To: ${application.email}, Subject: Membership Application Update, Body: Your application to join the organisation has been rejected. Reason: ${reason || 'Not specified'}`);
+      
+      res.json({ success: true, message: 'Application rejected' });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }
@@ -501,6 +638,26 @@ async function startServer() {
           });
 
           await logEvent('ORG_CREATED', `Organisation ${application.name} created from approved application`, 'SUCCESS', createdOrg._id, req.user.id);
+
+          // Create an ORG_ADMIN user for the applicant
+          const existingUser = await User.findOne({ email: application.email });
+          if (!existingUser) {
+            const passwordHash = await bcrypt.hash('WhanauWell2026!', 10);
+            await User.create({
+              name: application.contactName,
+              email: application.email,
+              passwordHash,
+              role: 'ORG_ADMIN',
+              organisationId: createdOrg._id
+            });
+            console.log(`Created ORG_ADMIN user for ${application.email}`);
+          } else {
+            // Update existing user to ORG_ADMIN for this new org
+            existingUser.role = 'ORG_ADMIN';
+            existingUser.organisationId = createdOrg._id;
+            await existingUser.save();
+            console.log(`Updated existing user ${application.email} to ORG_ADMIN for ${createdOrg.name}`);
+          }
         }
       }
 
@@ -719,7 +876,7 @@ async function startServer() {
   app.put("/api/admin/settings", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req: any, res) => {
     try {
       const { platformName, maintenanceMode, allowPublicRegistration, defaultStressCheckInterval } = req.body;
-      const settings = await GlobalSettings.findOneAndUpdate({}, { platformName, maintenanceMode, allowPublicRegistration, defaultStressCheckInterval }, { new: true, upsert: true });
+      const settings = await GlobalSettings.findOneAndUpdate({}, { platformName, maintenanceMode, allowPublicRegistration, defaultStressCheckInterval }, { returnDocument: 'after', upsert: true });
       await logEvent('SETTINGS_UPDATED', `Global platform settings updated`, 'WARNING', null, req.user.id);
       res.json({ success: true, data: settings });
     } catch (error: any) {
@@ -923,7 +1080,7 @@ async function startServer() {
       const member = await User.findOneAndUpdate(
         { _id: req.params.id, organisationId: req.tenantId },
         { role },
-        { new: true }
+        { returnDocument: 'after' }
       ).select('-passwordHash');
 
       if (!member) {
@@ -1000,7 +1157,7 @@ async function startServer() {
       const programme = await Programme.findOneAndUpdate(
         { _id: req.params.id, organisationId: req.tenantId },
         { title, publicSummary, memberDetails, visibility, startDate, location, category },
-        { new: true }
+        { returnDocument: 'after' }
       );
       if (!programme) return res.status(404).json({ success: false, message: 'Programme not found or access denied' });
       res.json({ success: true, data: programme });
@@ -1082,7 +1239,7 @@ async function startServer() {
   });
 
   // Members Routes
-  app.get("/api/members", authMiddleware, tenantMiddleware, roleMiddleware(['ORG_ADMIN', 'COORDINATOR']), async (req: any, res) => {
+  app.get("/api/members", authMiddleware, tenantMiddleware, roleMiddleware(['ORG_ADMIN', 'COORDINATOR', 'MEMBER']), async (req: any, res) => {
     try {
       const members = await User.find({ organisationId: req.tenantId }).select('-passwordHash');
       res.json({ success: true, data: members });
@@ -1094,13 +1251,23 @@ async function startServer() {
   // Dashboard Stats
   app.get("/api/dashboard/stats", authMiddleware, tenantMiddleware, async (req: any, res) => {
     try {
-      const programmesCount = await Programme.countDocuments({ organisationId: req.tenantId });
+      const programmesCount = await Programme.countDocuments({ 
+        $or: [
+          { organisationId: req.tenantId },
+          { visibility: 'PUBLIC' }
+        ]
+      });
       const membersCount = await User.countDocuments({ organisationId: req.tenantId });
       const stressRecords = await StressRecord.find({ organisationId: req.tenantId });
       const stressStats = StressService.getAggregatedStats(stressRecords);
 
       // Recent activities
-      const recentProgrammes = await Programme.find({ organisationId: req.tenantId }).sort({ createdAt: -1 }).limit(3);
+      const recentProgrammes = await Programme.find({ 
+        $or: [
+          { organisationId: req.tenantId },
+          { visibility: 'PUBLIC' }
+        ]
+      }).sort({ createdAt: -1 }).limit(3);
       const recentStress = await StressRecord.find({ organisationId: req.tenantId }).sort({ createdAt: -1 }).limit(3).populate('userId', 'name');
 
       // Participation trends (last 4 weeks)

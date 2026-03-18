@@ -1,9 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { StressQuestion, StressResult } from '../types';
 import { BrainCircuit, ChevronRight, ChevronLeft, CheckCircle2, AlertCircle, Info, ShieldCheck } from 'lucide-react';
 
 const StressAssessment: React.FC = () => {
+  const navigate = useNavigate();
   const [questions, setQuestions] = useState<StressQuestion[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [responses, setResponses] = useState<Record<string, number>>({});
@@ -150,7 +152,7 @@ const StressAssessment: React.FC = () => {
 
           <div className="mt-10 pt-8 border-t border-slate-100 text-center">
             <button 
-              onClick={() => window.location.reload()}
+              onClick={() => navigate('/app/dashboard')}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-10 py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 transition-all"
             >
               Back to Dashboard

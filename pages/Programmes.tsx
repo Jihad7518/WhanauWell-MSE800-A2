@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, Programme } from '../types';
-import { Plus, Search, MapPin, Clock, Users, ExternalLink, Trash2, X, Info } from 'lucide-react';
+import { Plus, Search, MapPin, Clock, Users, ExternalLink, Trash2, X, Info, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface ProgrammesProps {
   user: User;
@@ -15,6 +15,14 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingProgramme, setEditingProgramme] = useState<Programme | null>(null);
   const [selectedProgramme, setSelectedProgramme] = useState<Programme | null>(null);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  
+  // Confirmation Modal State
+  const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; id: string | null }>({
+    isOpen: false,
+    id: null
+  });
+
   const [newProgramme, setNewProgramme] = useState({
     title: '',
     publicSummary: '',
@@ -47,7 +55,6 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Attempting to save programme:', newProgramme);
     setLoading(true);
     try {
       const url = editingProgramme ? `/api/programmes/${editingProgramme._id}` : '/api/programmes';
@@ -62,7 +69,6 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
         body: JSON.stringify(newProgramme)
       });
       const data = await response.json();
-      console.log('Save response:', data);
       if (data.success) {
         fetchProgrammes();
         setShowModal(false);
@@ -76,14 +82,15 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
           location: '', 
           category: 'Health & Wellbeing' 
         });
+        setNotification({ type: 'success', message: `Programme ${editingProgramme ? 'updated' : 'created'} successfully!` });
       } else {
-        alert(data.message || 'Failed to save programme');
+        setNotification({ type: 'error', message: data.message || 'Failed to save programme' });
       }
     } catch (error) {
-      console.error('Save error:', error);
-      alert('Connection error. Please try again.');
+      setNotification({ type: 'error', message: 'Connection error. Please try again.' });
     } finally {
       setLoading(false);
+      setTimeout(() => setNotification(null), 5000);
     }
   };
 
@@ -114,25 +121,35 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
         if (selectedProgramme && selectedProgramme._id === id) {
           setSelectedProgramme(data.data);
         }
+        setNotification({ type: 'success', message: `Successfully ${isJoining ? 'joined' : 'left'} the programme.` });
       }
     } catch (error) {
-      console.error('Join/Leave error:', error);
+      setNotification({ type: 'error', message: 'Failed to update enrollment.' });
+    } finally {
+      setTimeout(() => setNotification(null), 5000);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this programme?')) return;
+  const handleDelete = async () => {
+    if (!confirmDelete.id) return;
+    
     try {
-      const response = await fetch(`/api/programmes/${id}`, {
+      const response = await fetch(`/api/programmes/${confirmDelete.id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
       });
       const data = await response.json();
       if (data.success) {
         fetchProgrammes();
+        setNotification({ type: 'success', message: 'Programme deleted successfully.' });
+      } else {
+        setNotification({ type: 'error', message: data.message || 'Failed to delete programme.' });
       }
     } catch (error) {
-      console.error('Delete error:', error);
+      setNotification({ type: 'error', message: 'Connection error.' });
+    } finally {
+      setConfirmDelete({ isOpen: false, id: null });
+      setTimeout(() => setNotification(null), 5000);
     }
   };
 
@@ -281,6 +298,20 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
         )}
       </div>
 
+      {notification && (
+        <div className={`p-4 rounded-xl flex items-center justify-between animate-in slide-in-from-top duration-300 ${
+          notification.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
+        }`}>
+          <div className="flex items-center space-x-3">
+            {notification.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+            <p className="text-sm font-medium">{notification.message}</p>
+          </div>
+          <button onClick={() => setNotification(null)} className="p-1 hover:bg-white/50 rounded-full transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center space-x-4 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
         <div className="flex-1 flex items-center px-4">
           <Search className="w-5 h-5 text-slate-400 mr-2" />
@@ -330,7 +361,7 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
                       <button onClick={(e) => { e.stopPropagation(); handleEdit(p); }} className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors">
                         <Plus className="w-5 h-5 rotate-45" /> {/* Using Plus rotated as a simple edit icon for now, or just use a text or another icon */}
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); handleDelete(p._id!); }} className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors">
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmDelete({ isOpen: true, id: p._id! }); }} className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors">
                         <Trash2 className="w-5 h-5" />
                       </button>
                     </>
@@ -377,6 +408,45 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {confirmDelete.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-rose-50/50">
+              <h3 className="text-lg font-black text-slate-900 flex items-center">
+                <Trash2 className="w-5 h-5 mr-2 text-rose-500" />
+                Delete Programme
+              </h3>
+              <button 
+                onClick={() => setConfirmDelete({ isOpen: false, id: null })}
+                className="p-2 hover:bg-white rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Are you sure you want to delete this programme? This action cannot be undone and all participant data for this programme will be lost.
+              </p>
+              <div className="flex space-x-3 pt-2">
+                <button
+                  onClick={() => setConfirmDelete({ isOpen: false, id: null })}
+                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="flex-1 px-4 py-3 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-700 transition-all shadow-lg shadow-rose-100"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

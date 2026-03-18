@@ -8,6 +8,7 @@ import Programmes from './pages/Programmes';
 import StressAssessment from './pages/StressAssessment';
 import Members from './pages/Members';
 import Profile from './pages/Profile';
+import OrganisationProfile from './pages/OrganisationProfile';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import Layout from './components/Layout';
 
@@ -15,6 +16,9 @@ import Layout from './components/Layout';
 import Home from './pages/public/Home';
 import PublicProgrammes from './pages/public/PublicProgrammes';
 import PublicProgrammeDetails from './pages/public/PublicProgrammeDetails';
+import OrganisationDetails from './pages/public/OrganisationDetails';
+import PublicOrganisations from './pages/public/PublicOrganisations';
+import MemberApplication from './pages/public/MemberApplication';
 import About from './pages/public/About';
 import Contact from './pages/public/Contact';
 import Privacy from './pages/public/Privacy';
@@ -120,6 +124,9 @@ const App: React.FC = () => {
           <Route path="/" element={<Home />} />
           <Route path="/programmes" element={<PublicProgrammes />} />
           <Route path="/programmes/:id" element={<PublicProgrammeDetails user={auth.user} />} />
+          <Route path="/organisations" element={<PublicOrganisations />} />
+          <Route path="/organisations/:id" element={<OrganisationDetails />} />
+          <Route path="/apply" element={<MemberApplication />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/privacy" element={<Privacy />} />
@@ -130,10 +137,11 @@ const App: React.FC = () => {
           <Route path="/auth/register" element={<Login onLogin={handleLogin} />} />
 
           {/* Protected App Routes */}
-          <Route path="/app/dashboard" element={<ProtectedRoute><Dashboard user={auth.user!} /></ProtectedRoute>} />
+          <Route path="/app/dashboard" element={<ProtectedRoute><Dashboard user={auth.user!} organisation={auth.organisation!} /></ProtectedRoute>} />
           <Route path="/app/programmes" element={<ProtectedRoute><Programmes user={auth.user!} /></ProtectedRoute>} />
           <Route path="/app/stress" element={<ProtectedRoute><StressAssessment /></ProtectedRoute>} />
           <Route path="/app/members" element={<ProtectedRoute><Members user={auth.user!} /></ProtectedRoute>} />
+          <Route path="/app/organisation" element={<ProtectedRoute><OrganisationProfile user={auth.user!} /></ProtectedRoute>} />
           <Route path="/app/profile" element={<ProtectedRoute><Profile user={auth.user!} onUpdateUser={handleUpdateUser} /></ProtectedRoute>} />
           <Route path="/app/admin" element={<ProtectedRoute><SuperAdminDashboard /></ProtectedRoute>} />
 

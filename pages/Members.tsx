@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
-import { User as UserIcon, Mail, Shield, Hash, Loader2 } from 'lucide-react';
+import { User as UserIcon, Mail, Shield, Hash, Loader2, AlertCircle, CheckCircle2, X } from 'lucide-react';
 
 interface MembersProps {
   user: User;
@@ -11,8 +11,22 @@ const Members: React.FC<MembersProps> = ({ user }) => {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   const [promoting, setPromoting] = useState<string | null>(null);
+  
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    memberId: string;
+    currentRole: string;
+    message: string;
+  }>({
+    isOpen: false,
+    memberId: '',
+    currentRole: '',
+    message: ''
+  });
 
   const fetchMembers = async () => {
     try {
@@ -38,14 +52,11 @@ const Members: React.FC<MembersProps> = ({ user }) => {
     }
   };
 
-  const handlePromote = async (memberId: string, currentRole: string) => {
+  const handlePromote = async () => {
+    const { memberId, currentRole } = confirmModal;
     const newRole = currentRole === 'MEMBER' ? 'COORDINATOR' : 'MEMBER';
-    const confirmMsg = newRole === 'COORDINATOR' 
-      ? 'Are you sure you want to promote this member to Coordinator? They will be able to create and manage programmes.'
-      : 'Are you sure you want to demote this coordinator to Member?';
     
-    if (!confirm(confirmMsg)) return;
-
+    setConfirmModal(prev => ({ ...prev, isOpen: false }));
     setPromoting(memberId);
     try {
       const response = await fetch(`/api/members/${memberId}/role`, {
@@ -59,14 +70,30 @@ const Members: React.FC<MembersProps> = ({ user }) => {
       const data = await response.json();
       if (data.success) {
         setMembers(members.map(m => m._id === memberId ? data.data : m));
+        setNotification({ type: 'success', message: `Successfully updated role to ${newRole.toLowerCase()}` });
       } else {
-        alert(data.message || 'Failed to update role');
+        setNotification({ type: 'error', message: data.message || 'Failed to update role' });
       }
     } catch (err) {
-      alert('Connection error');
+      setNotification({ type: 'error', message: 'Connection error' });
     } finally {
       setPromoting(null);
+      setTimeout(() => setNotification(null), 5000);
     }
+  };
+
+  const openConfirmModal = (memberId: string, currentRole: string) => {
+    const newRole = currentRole === 'MEMBER' ? 'COORDINATOR' : 'MEMBER';
+    const message = newRole === 'COORDINATOR' 
+      ? 'Are you sure you want to promote this member to Coordinator? They will be able to create and manage programmes.'
+      : 'Are you sure you want to demote this coordinator to Member?';
+    
+    setConfirmModal({
+      isOpen: true,
+      memberId,
+      currentRole,
+      message
+    });
   };
 
   useEffect(() => {
@@ -91,8 +118,22 @@ const Members: React.FC<MembersProps> = ({ user }) => {
 
       {error && (
         <div className="p-4 bg-rose-50 text-rose-700 border border-rose-100 rounded-xl flex items-center space-x-3">
-          <Hash className="w-5 h-5" />
+          <AlertCircle className="w-5 h-5" />
           <p className="text-sm font-medium">{error}</p>
+        </div>
+      )}
+
+      {notification && (
+        <div className={`p-4 rounded-xl flex items-center justify-between animate-in slide-in-from-top duration-300 ${
+          notification.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
+        }`}>
+          <div className="flex items-center space-x-3">
+            {notification.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+            <p className="text-sm font-medium">{notification.message}</p>
+          </div>
+          <button onClick={() => setNotification(null)} className="p-1 hover:bg-white/50 rounded-full transition-colors">
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
@@ -121,7 +162,9 @@ const Members: React.FC<MembersProps> = ({ user }) => {
                       </div>
                       <div>
                         <p className="font-bold text-slate-800">{member.name}</p>
-                        <p className="text-xs text-slate-500">ID: {member._id.substring(0, 8)}...</p>
+                        {(user.role === UserRole.ORG_ADMIN || user.role === UserRole.COORDINATOR) && (
+                          <p className="text-xs text-slate-500">ID: {member._id.substring(0, 8)}...</p>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -135,10 +178,14 @@ const Members: React.FC<MembersProps> = ({ user }) => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-500">
-                    <div className="flex items-center">
-                      <Mail className="w-4 h-4 mr-2 text-slate-300" />
-                      {member.email}
-                    </div>
+                    {(user.role === UserRole.ORG_ADMIN || user.role === UserRole.COORDINATOR) ? (
+                      <div className="flex items-center">
+                        <Mail className="w-4 h-4 mr-2 text-slate-300" />
+                        {member.email}
+                      </div>
+                    ) : (
+                      <span className="text-slate-300 italic">Hidden</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-right">
                     {user.role === UserRole.ORG_ADMIN && 
@@ -146,7 +193,7 @@ const Members: React.FC<MembersProps> = ({ user }) => {
                      member.role !== UserRole.SUPER_ADMIN && 
                      member._id !== user.id && (
                       <button
-                        onClick={() => handlePromote(member._id, member.role)}
+                        onClick={() => openConfirmModal(member._id, member.role)}
                         disabled={promoting === member._id}
                         className="text-indigo-600 hover:text-indigo-900 font-semibold text-sm flex items-center justify-end space-x-1 ml-auto"
                       >
@@ -167,6 +214,45 @@ const Members: React.FC<MembersProps> = ({ user }) => {
           </table>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-indigo-50/50">
+              <h3 className="text-lg font-black text-slate-900 flex items-center">
+                <Shield className="w-5 h-5 mr-2 text-indigo-500" />
+                Confirm Role Change
+              </h3>
+              <button 
+                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                className="p-2 hover:bg-white rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-slate-600 leading-relaxed">
+                {confirmModal.message}
+              </p>
+              <div className="flex space-x-3 pt-2">
+                <button
+                  onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePromote}
+                  className="flex-1 px-4 py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
