@@ -109,11 +109,9 @@ const SuperAdminDashboard: React.FC = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    console.log('Fetching dashboard data...');
     try {
       const token = localStorage.getItem('whanauwell_token');
       if (!token) {
-        console.error('No token found');
         return;
       }
 
@@ -144,20 +142,6 @@ const SuperAdminDashboard: React.FC = () => {
         logsData, insightsData, ticketsData, settingsData, healthData, orgAppsData
       ] = results;
       
-      console.log('Dashboard Data Status:', {
-        orgs: orgsRes.status,
-        stats: statsRes.status,
-        users: usersRes.status,
-        progs: progsRes.status
-      });
-
-      console.log('Dashboard Data Payload:', {
-        orgs: orgsData,
-        stats: statsData,
-        users: usersData,
-        progs: progsData
-      });
-
       if (orgsData.success) setOrganisations(orgsData.data);
       if (statsData.success) setStats(statsData.data);
       if (usersData.success) setUsers(usersData.data);
@@ -244,7 +228,7 @@ const SuperAdminDashboard: React.FC = () => {
       const data = await response.json();
       if (data.success) {
         showNotification('success', 'Platform data initialized successfully!');
-        console.log('Seed counts from server:', data.counts);
+        // Seed counts from server
         fetchData();
       } else {
         showNotification('error', data.message || 'Failed to seed data');
@@ -594,7 +578,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
               </div>
               <div className="h-[300px] w-full min-h-[300px]">
-                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300} debounce={1}>
                   <BarChart data={wellbeingInsights.map(i => ({ name: i.org.name, score: i.avgStress }))}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />

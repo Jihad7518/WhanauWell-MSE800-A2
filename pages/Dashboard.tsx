@@ -12,7 +12,9 @@ import {
   Clock,
   CheckCircle2,
   Mail,
-  X
+  X,
+  AlertCircle,
+  XCircle
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -43,6 +45,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
   const [rejectingAppId, setRejectingAppId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
+  const [notification, setNotification] = useState<{show: boolean, message: string, type: 'success' | 'error'}>({
+    show: false,
+    message: '',
+    type: 'success'
+  });
+
+  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => setNotification(prev => ({ ...prev, show: false })), 3000);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -68,7 +80,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
         const myProgsData = await myProgsRes.json();
         if (myProgsData.success) setMyProgrammes(myProgsData.data);
       } catch (error) {
-        console.error('Fetch data error:', error);
+        showNotification('Failed to fetch dashboard data', 'error');
       } finally {
         setLoading(false);
       }
@@ -85,9 +97,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
       const data = await response.json();
       if (data.success) {
         setApplications(applications.map(app => app._id === appId ? { ...app, status: 'APPROVED', inviteCodeSent: data.code } : app));
+        showNotification('Application approved! Invite code generated.');
       }
     } catch (err) {
-      console.error('Approval error:', err);
+      showNotification('Failed to approve application', 'error');
     }
   };
 
@@ -110,9 +123,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
         setIsRejectModalOpen(false);
         setRejectingAppId(null);
         setRejectionReason('');
+        showNotification('Application rejected');
       }
     } catch (err) {
-      console.error('Reject error:', err);
+      showNotification('Failed to reject application', 'error');
     } finally {
       setIsRejecting(false);
     }
@@ -255,7 +269,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
           </div>
           <div className="h-80 w-full min-h-[320px]">
             {participationData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={320} debounce={1}>
                 <BarChart data={participationData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
@@ -280,7 +294,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
           <h2 className="text-xl font-bold text-slate-900 mb-8">Stress Distribution</h2>
           <div className="h-64 w-full relative min-h-[256px]">
             {stressDistribution.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={256} debounce={1}>
                 <PieChart>
                   <Pie
                     data={stressDistribution}
@@ -402,7 +416,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   navigator.clipboard.writeText(app.inviteCodeSent || '');
-                                  alert('Invite code copied to clipboard!');
+                                  showNotification('Invite code copied to clipboard!');
                                 }}
                                 className="ml-1 p-1 hover:bg-emerald-100 rounded transition-colors"
                                 title="Copy Invite Code"
@@ -595,6 +609,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+      {/* Notification Toast */}
+      {notification.show && (
+        <div className={`fixed bottom-8 right-8 z-[100] flex items-center space-x-3 px-6 py-4 rounded-2xl shadow-2xl animate-in slide-in-from-right-10 duration-300 ${
+          notification.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+        }`}>
+          {notification.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+          <span className="font-bold text-sm">{notification.message}</span>
+          <button onClick={() => setNotification({ ...notification, show: false })} className="hover:opacity-70">
+            <XCircle className="w-4 h-4" />
+          </button>
         </div>
       )}
     </div>

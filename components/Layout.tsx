@@ -38,7 +38,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, organisation, onLogout 
         const data = await response.json();
         if (data.success) setBroadcasts(data.data);
       } catch (err) {
-        console.error('Failed to fetch broadcasts', err);
+        // Silently fail or handle error
       }
     };
     fetchBroadcasts();
