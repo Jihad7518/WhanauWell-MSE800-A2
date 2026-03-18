@@ -51,12 +51,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
     type: 'success'
   });
 
+  const [isMounted, setIsMounted] = useState(false);
+
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ show: true, message, type });
     setTimeout(() => setNotification(prev => ({ ...prev, show: false })), 3000);
   };
 
   useEffect(() => {
+    setIsMounted(true);
     const fetchData = async () => {
       try {
         const statsRes = await fetch('/api/dashboard/stats', {
@@ -268,7 +271,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Last 4 Weeks</div>
           </div>
           <div className="h-80 w-full min-h-[320px]">
-            {participationData.length > 0 ? (
+            {isMounted && participationData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={320} debounce={1}>
                 <BarChart data={participationData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -293,7 +296,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
           <h2 className="text-xl font-bold text-slate-900 mb-8">Stress Distribution</h2>
           <div className="h-64 w-full relative min-h-[256px]">
-            {stressDistribution.length > 0 ? (
+            {isMounted && stressDistribution.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={256} debounce={1}>
                 <PieChart>
                   <Pie

@@ -36,8 +36,6 @@ async function startServer() {
 
   const seedPlatformData = async () => {
     try {
-      console.log("Starting comprehensive sample data seeding...");
-      
       // Refresh masterOrg and superAdminId if needed
       masterOrg = await Organisation.findOne({ code: 'MASTER' });
       if (!masterOrg) {
@@ -50,7 +48,6 @@ async function startServer() {
           trackRecord: 'Powering over 50 community hubs and supporting 10,000+ whānau members.',
           foundedAt: new Date('2023-01-01')
         });
-        console.log("Re-created MASTER organisation");
       }
 
       let superAdmin = await User.findOne({ email: 'admin@whanauwell.org' });
@@ -63,7 +60,6 @@ async function startServer() {
           role: 'SUPER_ADMIN',
           organisationId: masterOrg._id
         });
-        console.log("Re-created Super Admin");
       }
       superAdminId = superAdmin._id;
 
@@ -131,7 +127,6 @@ async function startServer() {
           { upsert: true, new: true }
         );
         if (org) {
-          console.log(`Ensured Org: ${o.name} (${o.code})`);
           orgs[o.code] = org;
         }
       }
@@ -167,7 +162,6 @@ async function startServer() {
           { upsert: true, new: true }
         );
         if (user) {
-          console.log(`Ensured user: ${u.email}`);
           seededUsers.push(user);
         }
       }
@@ -367,7 +361,6 @@ async function startServer() {
         trackRecord: 'Powering over 50 community hubs and supporting 10,000+ whānau members.',
         foundedAt: new Date('2023-01-01')
       });
-      console.log("Seeded MASTER organisation");
     }
 
     // Seed Super Admin
@@ -382,13 +375,11 @@ async function startServer() {
         organisationId: masterOrg._id
       });
       superAdminId = newAdmin._id;
-      console.log("Seeded Super Admin: admin@whanauwell.org");
     } else {
       superAdminId = superAdmin._id;
     }
 
     // Always ensure sample data is up to date
-    console.log("Ensuring sample data is up to date...");
     await seedPlatformData();
   } catch (err) {
     console.error("MongoDB connection error:", err);
@@ -500,9 +491,6 @@ async function startServer() {
       });
       await logEvent('MEMBERSHIP_APPLIED', `New membership application from ${name} (${email})`, 'INFO', organisationId);
       
-      // Simulate email notification to admins
-      console.log(`[EMAIL SIMULATION] To: org-admin@${organisationId}.com, Subject: New Membership Application, Body: ${name} has applied to join your organisation.`);
-      
       res.json({ success: true, data: application });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
@@ -583,9 +571,6 @@ async function startServer() {
 
       await logEvent('MEMBERSHIP_APPROVED', `Membership application for ${application.name} approved`, 'SUCCESS', organisation._id, req.user.id);
       
-      // Simulate email notification to applicant
-      console.log(`[EMAIL SIMULATION] To: ${application.email}, Subject: Membership Approved, Body: Your application to join ${organisation.name} has been approved. Your invite code is: ${organisation.code}`);
-      
       res.json({ success: true, message: 'Application approved and code assigned', code: organisation.code });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
@@ -603,9 +588,6 @@ async function startServer() {
       await application.save();
 
       await logEvent('MEMBERSHIP_REJECTED', `Membership application for ${application.name} rejected`, 'INFO', application.organisationId, req.user.id);
-      
-      // Simulate email notification to applicant
-      console.log(`[EMAIL SIMULATION] To: ${application.email}, Subject: Membership Application Update, Body: Your application to join the organisation has been rejected. Reason: ${reason || 'Not specified'}`);
       
       res.json({ success: true, message: 'Application rejected' });
     } catch (error: any) {
@@ -687,10 +669,8 @@ async function startServer() {
   });
 
   app.get("/api/admin/organisations", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
-    console.log('GET /api/admin/organisations hit by user:', req.user.email);
     try {
       const organisations = await Organisation.find();
-      console.log(`Found ${organisations.length} organisations`);
       const orgsWithStats = await Promise.all(organisations.map(async (org) => {
         const userCount = await User.countDocuments({ organisationId: org._id });
         const programmeCount = await Programme.countDocuments({ organisationId: org._id });
@@ -763,7 +743,6 @@ async function startServer() {
   });
 
   app.get("/api/admin/stats", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
-    console.log('GET /api/admin/stats hit');
     try {
       const totalUsers = await User.countDocuments();
       const totalOrgs = await Organisation.countDocuments();

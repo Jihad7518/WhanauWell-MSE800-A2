@@ -44,6 +44,9 @@ import {
 
 const SuperAdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'organisations' | 'users' | 'programmes' | 'tickets' | 'settings' | 'org-applications'>('overview');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [isMounted, setIsMounted] = useState(false);
   const [organisations, setOrganisations] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [programmes, setProgrammes] = useState<any[]>([]);
@@ -107,6 +110,40 @@ const SuperAdminDashboard: React.FC = () => {
     category: 'Wellbeing'
   });
 
+  // Filtered Data
+  const filteredOrganisations = organisations.filter(org => 
+    org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    org.code.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredUsers = users.filter(user => 
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.role.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredProgrammes = programmes.filter(prog => 
+    prog.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    prog.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    prog.organisationId?.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredTickets = tickets.filter(ticket => {
+    const matchesSearch = ticket.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         ticket.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         ticket.userId?.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'all' || ticket.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  const filteredApplications = orgApplications.filter(app => {
+    const matchesSearch = app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         app.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         app.contactName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'all' || app.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -164,6 +201,7 @@ const SuperAdminDashboard: React.FC = () => {
   };
 
   useEffect(() => {
+    setIsMounted(true);
     fetchData();
     const interval = setInterval(fetchData, 30000); // Refresh every 30s
     return () => clearInterval(interval);
@@ -449,6 +487,16 @@ const SuperAdminDashboard: React.FC = () => {
         </div>
         
         <div className="flex items-center space-x-3">
+          <div className="relative hidden md:block">
+            <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Global search..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-11 pr-6 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 w-64 shadow-sm transition-all"
+            />
+          </div>
           <button 
             onClick={fetchData}
             className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all flex items-center space-x-2"
@@ -578,22 +626,24 @@ const SuperAdminDashboard: React.FC = () => {
                 </div>
               </div>
               <div className="h-[300px] w-full min-h-[300px]">
-                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300} debounce={1}>
-                  <BarChart data={wellbeingInsights.map(i => ({ name: i.org.name, score: i.avgStress }))}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} domain={[0, 10]} />
-                    <Tooltip 
-                      cursor={{fill: '#f8fafc'}}
-                      contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
-                    />
-                    <Bar dataKey="score" radius={[8, 8, 0, 0]}>
-                      {wellbeingInsights.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.avgStress > 7 ? '#f43f5e' : entry.avgStress > 4 ? '#f59e0b' : '#10b981'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                {isMounted && (
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300} debounce={1}>
+                    <BarChart data={wellbeingInsights.map(i => ({ name: i.org.name, score: i.avgStress }))}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} domain={[0, 10]} />
+                      <Tooltip 
+                        cursor={{fill: '#f8fafc'}}
+                        contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                      />
+                      <Bar dataKey="score" radius={[8, 8, 0, 0]}>
+                        {wellbeingInsights.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.avgStress > 7 ? '#f43f5e' : entry.avgStress > 4 ? '#f59e0b' : '#10b981'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
           </div>
@@ -861,9 +911,24 @@ const SuperAdminDashboard: React.FC = () => {
           )}
 
           <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="p-8 border-b border-slate-50">
-            <h2 className="text-xl font-black text-slate-900">Hub Onboarding Requests</h2>
-            <p className="text-slate-400 text-sm font-medium">Review and manage requests from new organisations (Hubs) wanting to join the platform.</p>
+          <div className="p-8 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-black text-slate-900">Hub Onboarding Requests</h2>
+              <p className="text-slate-400 text-sm font-medium">Review and manage requests from new organisations (Hubs) wanting to join the platform.</p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Filter className="w-4 h-4 text-slate-400" />
+              <select 
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="text-xs font-bold border-slate-200 rounded-xl bg-slate-50 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="all">All Status</option>
+                <option value="PENDING">Pending</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -877,12 +942,12 @@ const SuperAdminDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {orgApplications.length === 0 ? (
+                {filteredApplications.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-8 py-20 text-center text-slate-400 italic">No onboarding requests found.</td>
                   </tr>
                 ) : (
-                  orgApplications.map((app) => (
+                  filteredApplications.map((app) => (
                     <tr key={app._id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-8 py-5">
                         <span className="font-bold text-slate-900 block">{app.name}</span>
@@ -963,7 +1028,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {organisations.map((org) => (
+                {filteredOrganisations.map((org) => (
                   <tr 
                     key={org._id} 
                     className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
@@ -1053,7 +1118,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {users.map((user) => (
+                {filteredUsers.map((user) => (
                   <tr 
                     key={user._id} 
                     className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
@@ -1137,7 +1202,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {programmes.map((prog) => (
+                {filteredProgrammes.map((prog) => (
                   <tr key={prog._id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-8 py-5">
                       <div className="flex items-center">
@@ -1425,6 +1490,20 @@ const SuperAdminDashboard: React.FC = () => {
               <h2 className="text-xl font-black text-slate-900">Support Desk</h2>
               <p className="text-slate-400 text-sm font-medium">Manage and respond to support tickets submitted by users and organisation administrators.</p>
             </div>
+            <div className="flex items-center space-x-2">
+              <Filter className="w-4 h-4 text-slate-400" />
+              <select 
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="text-xs font-bold border-slate-200 rounded-xl bg-slate-50 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="all">All Status</option>
+                <option value="OPEN">Open</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="RESOLVED">Resolved</option>
+                <option value="CLOSED">Closed</option>
+              </select>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -1438,12 +1517,12 @@ const SuperAdminDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {tickets.length === 0 ? (
+                {filteredTickets.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-8 py-20 text-center text-slate-400 italic">No support tickets found.</td>
                   </tr>
                 ) : (
-                  tickets.map((ticket) => (
+                  filteredTickets.map((ticket) => (
                     <tr key={ticket._id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-8 py-5">
                         <span className="font-bold text-slate-900 block">{ticket.subject}</span>
