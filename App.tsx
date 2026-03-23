@@ -94,10 +94,15 @@ const App: React.FC = () => {
   const isAuthRoute = location.pathname.startsWith('/auth');
 
   // Protected Route Wrapper
-  const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode, requiredRole?: UserRole }) => {
     if (!auth.isAuthenticated || !auth.user) {
       return <Navigate to={`/auth/login?redirect=${location.pathname}`} replace />;
     }
+
+    if (requiredRole && auth.user.role !== requiredRole) {
+      return <Navigate to="/app/dashboard" replace />;
+    }
+
     return (
       <Layout 
         user={auth.user} 
@@ -143,7 +148,7 @@ const App: React.FC = () => {
           <Route path="/app/members" element={<ProtectedRoute><Members user={auth.user!} /></ProtectedRoute>} />
           <Route path="/app/organisation" element={<ProtectedRoute><OrganisationProfile user={auth.user!} /></ProtectedRoute>} />
           <Route path="/app/profile" element={<ProtectedRoute><Profile user={auth.user!} onUpdateUser={handleUpdateUser} /></ProtectedRoute>} />
-          <Route path="/app/admin" element={<ProtectedRoute><SuperAdminDashboard /></ProtectedRoute>} />
+          <Route path="/app/admin" element={<ProtectedRoute requiredRole={UserRole.SUPER_ADMIN}><SuperAdminDashboard /></ProtectedRoute>} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

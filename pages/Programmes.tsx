@@ -11,6 +11,7 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
   const isCoordinator = user.role === UserRole.COORDINATOR || user.role === UserRole.ORG_ADMIN;
   
   const [programmes, setProgrammes] = useState<Programme[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingProgramme, setEditingProgramme] = useState<Programme | null>(null);
@@ -152,6 +153,13 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
       setTimeout(() => setNotification(null), 5000);
     }
   };
+
+  const filteredProgrammes = programmes.filter(p => 
+    p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.publicSummary.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.location?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-8">
@@ -315,7 +323,13 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
       <div className="flex items-center space-x-4 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
         <div className="flex-1 flex items-center px-4">
           <Search className="w-5 h-5 text-slate-400 mr-2" />
-          <input type="text" placeholder="Search programmes..." className="w-full bg-transparent border-none outline-none py-2 text-slate-600" />
+          <input 
+            type="text" 
+            placeholder="Search programmes..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-transparent border-none outline-none py-2 text-slate-600" 
+          />
         </div>
         <div className="h-8 w-px bg-slate-200"></div>
         <button className="px-6 py-2 text-slate-500 font-medium hover:text-indigo-600">Filters</button>
@@ -325,15 +339,15 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
         <div className="flex justify-center py-20">
           <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
         </div>
-      ) : programmes.length === 0 ? (
+      ) : filteredProgrammes.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-300">
           <Info className="w-12 h-12 text-slate-300 mx-auto mb-4" />
           <h3 className="text-lg font-bold text-slate-800">No programmes found</h3>
-          <p className="text-slate-500">Check back later or create a new one if you're a coordinator.</p>
+          <p className="text-slate-500">Try adjusting your search or filters.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {programmes.map((p) => (
+          {filteredProgrammes.map((p) => (
             <div key={p._id} onClick={() => setSelectedProgramme(p)} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all cursor-pointer group">
               <div className="flex justify-between items-start mb-4">
                 <div>

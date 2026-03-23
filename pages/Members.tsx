@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
-import { User as UserIcon, Mail, Shield, Hash, Loader2, AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { User as UserIcon, Mail, Shield, Hash, Loader2, AlertCircle, CheckCircle2, X, Search } from 'lucide-react';
 
 interface MembersProps {
   user: User;
@@ -9,6 +9,7 @@ interface MembersProps {
 
 const Members: React.FC<MembersProps> = ({ user }) => {
   const [members, setMembers] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -100,6 +101,12 @@ const Members: React.FC<MembersProps> = ({ user }) => {
     fetchMembers();
   }, []);
 
+  const filteredMembers = members.filter(m => 
+    m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    m.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    m.role.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -137,6 +144,19 @@ const Members: React.FC<MembersProps> = ({ user }) => {
         </div>
       )}
 
+      <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-100 flex items-center">
+        <div className="flex-1 flex items-center px-4">
+          <Search className="w-5 h-5 text-slate-400 mr-2" />
+          <input 
+            type="text" 
+            placeholder="Search members by name, email or role..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-transparent border-none outline-none py-2 text-slate-600" 
+          />
+        </div>
+      </div>
+
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -149,8 +169,13 @@ const Members: React.FC<MembersProps> = ({ user }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {members.map((member) => (
-                <tr key={member._id} className="hover:bg-slate-50/50 transition-colors">
+              {filteredMembers.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-10 text-center text-slate-400 italic">No members found matching your search.</td>
+                </tr>
+              ) : (
+                filteredMembers.map((member) => (
+                  <tr key={member._id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold overflow-hidden border border-indigo-50">
@@ -209,7 +234,8 @@ const Members: React.FC<MembersProps> = ({ user }) => {
                     )}
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>

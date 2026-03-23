@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Megaphone,
   XCircle,
+  X,
   Edit,
   History,
   Heart,
@@ -144,8 +145,8 @@ const SuperAdminDashboard: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const token = localStorage.getItem('whanauwell_token');
       if (!token) {
@@ -191,19 +192,19 @@ const SuperAdminDashboard: React.FC = () => {
       if (healthData.success) setSystemHealth(healthData.data);
       if (orgAppsData.success) setOrgApplications(orgAppsData.data);
       
-      showNotification('success', 'Dashboard data refreshed successfully');
+      if (!silent) showNotification('success', 'Dashboard data refreshed successfully');
     } catch (err) {
       console.error('Fetch error:', err);
-      showNotification('error', 'Failed to refresh dashboard data. Please check your connection.');
+      if (!silent) showNotification('error', 'Failed to refresh dashboard data. Please check your connection.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     setIsMounted(true);
     fetchData();
-    const interval = setInterval(fetchData, 30000); // Refresh every 30s
+    const interval = setInterval(() => fetchData(true), 30000); // Refresh every 30s silently
     return () => clearInterval(interval);
   }, []);
 
@@ -498,7 +499,7 @@ const SuperAdminDashboard: React.FC = () => {
             />
           </div>
           <button 
-            onClick={fetchData}
+            onClick={() => fetchData()}
             className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all flex items-center space-x-2"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -546,6 +547,32 @@ const SuperAdminDashboard: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {searchTerm && (
+        <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex items-center space-x-6 animate-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center space-x-2">
+            <Search className="w-4 h-4 text-indigo-500" />
+            <span className="text-sm font-bold text-indigo-900">Search Results:</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <button onClick={() => setActiveTab('organisations')} className="text-xs font-bold text-indigo-600 hover:underline">
+              {filteredOrganisations.length} Organisations
+            </button>
+            <button onClick={() => setActiveTab('users')} className="text-xs font-bold text-indigo-600 hover:underline">
+              {filteredUsers.length} Users
+            </button>
+            <button onClick={() => setActiveTab('programmes')} className="text-xs font-bold text-indigo-600 hover:underline">
+              {filteredProgrammes.length} Programmes
+            </button>
+            <button onClick={() => setActiveTab('tickets')} className="text-xs font-bold text-indigo-600 hover:underline">
+              {filteredTickets.length} Tickets
+            </button>
+          </div>
+          <button onClick={() => setSearchTerm('')} className="ml-auto text-indigo-400 hover:text-indigo-600">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Overview Tab */}
       {activeTab === 'overview' && (
@@ -625,9 +652,9 @@ const SuperAdminDashboard: React.FC = () => {
                   <span>High Stress</span>
                 </div>
               </div>
-              <div className="h-[300px] w-full min-h-[300px]">
+              <div className="h-[300px] w-full">
                 {isMounted && (
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300} debounce={1}>
+                  <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={wellbeingInsights.map(i => ({ name: i.org.name, score: i.avgStress }))}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
@@ -916,18 +943,30 @@ const SuperAdminDashboard: React.FC = () => {
               <h2 className="text-xl font-black text-slate-900">Hub Onboarding Requests</h2>
               <p className="text-slate-400 text-sm font-medium">Review and manage requests from new organisations (Hubs) wanting to join the platform.</p>
             </div>
-            <div className="flex items-center space-x-2">
-              <Filter className="w-4 h-4 text-slate-400" />
-              <select 
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="text-xs font-bold border-slate-200 rounded-xl bg-slate-50 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="all">All Status</option>
-                <option value="PENDING">Pending</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-              </select>
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search requests..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-11 pr-6 py-2 bg-slate-50 border-none rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 w-full md:w-64"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Filter className="w-4 h-4 text-slate-400" />
+                <select 
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="text-xs font-bold border-slate-200 rounded-xl bg-slate-50 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="all">All Status</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="REJECTED">Rejected</option>
+                </select>
+              </div>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -1010,6 +1049,8 @@ const SuperAdminDashboard: React.FC = () => {
               <input 
                 type="text" 
                 placeholder="Search by name or code..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-11 pr-6 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 w-full md:w-80"
               />
             </div>
@@ -1100,6 +1141,8 @@ const SuperAdminDashboard: React.FC = () => {
                 <input 
                   type="text" 
                   placeholder="Search by name or email..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-11 pr-6 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 w-full md:w-80"
                 />
               </div>

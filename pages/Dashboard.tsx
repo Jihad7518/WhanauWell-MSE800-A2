@@ -270,9 +270,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
             <h2 className="text-xl font-bold text-slate-900">Participation Trends</h2>
             <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Last 4 Weeks</div>
           </div>
-          <div className="h-80 w-full min-h-[320px]">
+          <div className="h-80 w-full">
             {isMounted && participationData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={320} debounce={1}>
+              <ResponsiveContainer width="100%" height={320}>
                 <BarChart data={participationData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
@@ -295,9 +295,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
 
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
           <h2 className="text-xl font-bold text-slate-900 mb-8">Stress Distribution</h2>
-          <div className="h-64 w-full relative min-h-[256px]">
+          <div className="h-64 w-full relative">
             {isMounted && stressDistribution.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={256} debounce={1}>
+              <ResponsiveContainer width="100%" height={256}>
                 <PieChart>
                   <Pie
                     data={stressDistribution}
