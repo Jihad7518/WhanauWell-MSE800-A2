@@ -344,7 +344,7 @@ async function startServer() {
 
   // Database Connection
   const mongoUri = process.env.MONGO_URI || 'mongodb+srv://whanauwll-admin-jihad:whanauwellmse800@cluster0.zkswhn8.mongodb.net/whanauwell?retryWrites=true&w=majority';
-  /*
+  
   try {
     await mongoose.connect(mongoUri);
     console.log("Connected to MongoDB successfully");
@@ -384,7 +384,7 @@ async function startServer() {
   } catch (err) {
     console.error("MongoDB connection error:", err);
   }
- */
+
   // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", message: "WhānauWell API is running" });

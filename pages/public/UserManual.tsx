@@ -14,7 +14,8 @@ import {
   Users,
   Mail,
   Settings,
-  Camera
+  Camera,
+  Lock
 } from 'lucide-react';
 
 const UserManual: React.FC = () => {
@@ -133,18 +134,44 @@ const UserManual: React.FC = () => {
                     <li className="flex items-center"><ArrowRight className="w-4 h-4 mr-2 text-indigo-500" /> Fill in your details and reason for joining</li>
                   </ul>
                 </div>
-                <div className="bg-slate-200 rounded-3xl aspect-video flex items-center justify-center border-4 border-white shadow-xl relative group overflow-hidden">
-                  <Camera className="w-12 h-12 text-slate-400" />
-                  <div className="absolute inset-0 bg-indigo-600/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  <p className="absolute bottom-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Screenshot: Hub Application Page</p>
+                <div className="bg-white rounded-3xl overflow-hidden border-4 border-slate-200 shadow-2xl relative group">
+                  <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 flex items-center space-x-2">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 rounded-full bg-rose-400"></div>
+                      <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+                      <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                    </div>
+                    <div className="bg-white rounded-md px-2 py-0.5 text-[8px] text-slate-400 flex-1 truncate">whanauwell.org/organisations/waitaha-health</div>
+                  </div>
+                  <img 
+                    src="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80" 
+                    alt="Hub Application Preview" 
+                    className="w-full aspect-video object-cover transition-all group-hover:scale-105"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-indigo-600/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                  <p className="absolute bottom-4 left-4 text-[10px] font-black text-white bg-indigo-600 px-2 py-1 rounded shadow-lg uppercase tracking-widest">Preview: Hub Application Page</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                <div className="bg-slate-200 rounded-3xl aspect-video flex items-center justify-center border-4 border-white shadow-xl relative group overflow-hidden md:order-last">
-                  <Camera className="w-12 h-12 text-slate-400" />
-                  <div className="absolute inset-0 bg-indigo-600/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  <p className="absolute bottom-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Screenshot: Registration Page</p>
+                <div className="bg-white rounded-3xl overflow-hidden border-4 border-slate-200 shadow-2xl relative group md:order-last">
+                  <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 flex items-center space-x-2">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 rounded-full bg-rose-400"></div>
+                      <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+                      <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                    </div>
+                    <div className="bg-white rounded-md px-2 py-0.5 text-[8px] text-slate-400 flex-1 truncate">whanauwell.org/auth/register</div>
+                  </div>
+                  <img 
+                    src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80" 
+                    alt="Registration Preview" 
+                    className="w-full aspect-video object-cover transition-all group-hover:scale-105"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-indigo-600/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                  <p className="absolute bottom-4 left-4 text-[10px] font-black text-white bg-indigo-600 px-2 py-1 rounded shadow-lg uppercase tracking-widest">Preview: Registration Page</p>
                 </div>
                 <div className="space-y-6">
                   <div className="flex items-center space-x-3">
@@ -182,9 +209,14 @@ const UserManual: React.FC = () => {
                   Complete a quick 10-question assessment daily to track your stress levels. 
                   This helps your Hub coordinators understand when you might need extra support.
                 </p>
-                <div className="bg-slate-100 rounded-xl aspect-video flex items-center justify-center relative group overflow-hidden">
-                  <Camera className="w-8 h-8 text-slate-400" />
-                  <p className="absolute bottom-2 text-[8px] font-black text-slate-400 uppercase tracking-widest">Screenshot: Stress Check Page</p>
+                <div className="bg-white rounded-2xl overflow-hidden border-2 border-slate-100 shadow-lg relative group">
+                  <img 
+                    src="https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=600&q=80" 
+                    alt="Stress Check Preview" 
+                    className="w-full aspect-video object-cover transition-all group-hover:scale-105"
+                    referrerPolicy="no-referrer"
+                  />
+                  <p className="absolute bottom-2 left-2 text-[8px] font-black text-white bg-rose-600 px-1.5 py-0.5 rounded shadow-lg uppercase tracking-widest">Preview: Stress Check Page</p>
                 </div>
               </div>
 
@@ -197,9 +229,14 @@ const UserManual: React.FC = () => {
                   Discover community events, workshops, and health programmes. 
                   You can enroll directly from the platform and see your upcoming schedule.
                 </p>
-                <div className="bg-slate-100 rounded-xl aspect-video flex items-center justify-center relative group overflow-hidden">
-                  <Camera className="w-8 h-8 text-slate-400" />
-                  <p className="absolute bottom-2 text-[8px] font-black text-slate-400 uppercase tracking-widest">Screenshot: Programmes List</p>
+                <div className="bg-white rounded-2xl overflow-hidden border-2 border-slate-100 shadow-lg relative group">
+                  <img 
+                    src="https://images.unsplash.com/photo-1504868584819-f8e905263543?auto=format&fit=crop&w=600&q=80" 
+                    alt="Programmes List Preview" 
+                    className="w-full aspect-video object-cover transition-all group-hover:scale-105"
+                    referrerPolicy="no-referrer"
+                  />
+                  <p className="absolute bottom-2 left-2 text-[8px] font-black text-white bg-indigo-600 px-1.5 py-0.5 rounded shadow-lg uppercase tracking-widest">Preview: Programmes List</p>
                 </div>
               </div>
             </div>
@@ -241,9 +278,22 @@ const UserManual: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  <div className="bg-slate-200 rounded-3xl aspect-square flex items-center justify-center border-4 border-white shadow-xl relative group overflow-hidden">
-                    <Camera className="w-12 h-12 text-slate-400" />
-                    <p className="absolute bottom-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Screenshot: Admin Dashboard</p>
+                  <div className="bg-white rounded-3xl overflow-hidden border-4 border-slate-200 shadow-2xl relative group">
+                    <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 flex items-center space-x-2">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 rounded-full bg-rose-400"></div>
+                        <div className="w-2 h-2 rounded-full bg-amber-400"></div>
+                        <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                      </div>
+                      <div className="bg-white rounded-md px-2 py-0.5 text-[8px] text-slate-400 flex-1 truncate">whanauwell.org/app/dashboard</div>
+                    </div>
+                    <img 
+                      src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80" 
+                      alt="Admin Dashboard Preview" 
+                      className="w-full aspect-square object-cover transition-all group-hover:scale-105"
+                      referrerPolicy="no-referrer"
+                    />
+                    <p className="absolute bottom-4 left-4 text-[10px] font-black text-white bg-indigo-600 px-2 py-1 rounded shadow-lg uppercase tracking-widest">Preview: Admin Dashboard</p>
                   </div>
                 </div>
               </div>
@@ -257,9 +307,14 @@ const UserManual: React.FC = () => {
                   Navigate to **Organisation Profile** to manage how your Hub appears to the public. 
                   You can update your mission, history, and add **Impact Stories** to showcase your work.
                 </p>
-                <div className="bg-slate-100 rounded-3xl h-64 flex items-center justify-center relative group overflow-hidden">
-                  <Camera className="w-12 h-12 text-slate-400" />
-                  <p className="absolute bottom-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Screenshot: Org Profile Settings</p>
+                <div className="bg-white rounded-3xl overflow-hidden border-4 border-slate-200 shadow-2xl relative group h-64">
+                  <img 
+                    src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80" 
+                    alt="Org Profile Preview" 
+                    className="w-full h-full object-cover transition-all group-hover:scale-105"
+                    referrerPolicy="no-referrer"
+                  />
+                  <p className="absolute bottom-4 left-4 text-[10px] font-black text-white bg-indigo-600 px-2 py-1 rounded shadow-lg uppercase tracking-widest">Preview: Org Profile Settings</p>
                 </div>
               </div>
             </div>
@@ -299,9 +354,14 @@ const UserManual: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="bg-white/5 rounded-3xl aspect-video flex items-center justify-center border border-white/10 relative group overflow-hidden">
-                  <Camera className="w-12 h-12 text-white/20" />
-                  <p className="absolute bottom-4 text-[10px] font-black text-white/20 uppercase tracking-widest">Screenshot: Super Admin Dashboard</p>
+                <div className="bg-white/5 rounded-3xl overflow-hidden border border-white/10 relative group shadow-2xl">
+                  <img 
+                    src="https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=1000&q=80" 
+                    alt="Super Admin Preview" 
+                    className="w-full aspect-video object-cover transition-all group-hover:scale-105"
+                    referrerPolicy="no-referrer"
+                  />
+                  <p className="absolute bottom-4 left-4 text-[10px] font-black text-white bg-rose-600 px-2 py-1 rounded shadow-lg uppercase tracking-widest">Preview: Super Admin Dashboard</p>
                 </div>
               </div>
             </div>
