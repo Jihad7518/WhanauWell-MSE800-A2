@@ -1,28 +1,38 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, Heart, Users, Shield, ArrowRight, Search, LogIn, Activity, Calendar } from 'lucide-react';
+import { ShieldCheck, Heart, Users, Shield, ArrowRight, Search, LogIn, Activity, Calendar, Building2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 const Home: React.FC = () => {
   const [publicProgrammes, setPublicProgrammes] = useState<any[]>([]);
+  const [organisations, setOrganisations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProgrammes = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/public/programmes');
-        const data = await response.json();
-        if (data.success) {
-          setPublicProgrammes(data.data.slice(0, 3)); // Show top 3
+        const [progRes, orgRes] = await Promise.all([
+          fetch('/api/public/programmes'),
+          fetch('/api/public/organisations')
+        ]);
+        
+        const progData = await progRes.json();
+        const orgData = await orgRes.json();
+        
+        if (progData.success) setPublicProgrammes(progData.data.slice(0, 3));
+        if (orgData.success) {
+          // Filter out the MASTER hub from partner list
+          const partners = orgData.data.filter((o: any) => o.code !== 'MASTER');
+          setOrganisations(partners.slice(0, 4));
         }
       } catch (err) {
-        console.error('Failed to fetch public programmes');
+        console.error('Failed to fetch public data');
       } finally {
         setLoading(false);
       }
     };
-    fetchProgrammes();
+    fetchData();
   }, []);
 
   return (
@@ -129,6 +139,50 @@ const Home: React.FC = () => {
             ))}
           </div>
         )}
+      </section>
+
+      {/* Partner Organisations */}
+      <section className="bg-slate-50 py-20">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
+            <div className="text-left">
+              <h2 className="text-4xl font-black text-slate-900 tracking-tight">Our Partner Organisations</h2>
+              <p className="text-slate-500 mt-4 max-w-2xl">WhānauWell powers a diverse network of community organisations dedicated to wellbeing.</p>
+            </div>
+            <Link to="/organisations" className="text-indigo-600 font-black uppercase tracking-widest text-xs flex items-center hover:translate-x-1 transition-transform">
+              View All Organisations <ArrowRight className="ml-2 w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {organisations.map((org, i) => (
+              <motion.div
+                key={org._id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-xl transition-all text-center group"
+              >
+                <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-indigo-50 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm group-hover:scale-110 transition-transform">
+                  {org.logo ? (
+                    <img src={org.logo} alt={org.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <Building2 className="w-10 h-10 text-indigo-600" />
+                  )}
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">{org.name}</h3>
+                <p className="text-slate-500 text-sm line-clamp-2 mb-6">{org.description || 'Dedicated to community wellbeing and whānau support.'}</p>
+                <Link 
+                  to={`/organisations/${org._id}`}
+                  className="text-indigo-600 font-bold text-xs uppercase tracking-widest hover:underline"
+                >
+                  View Profile
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* How It Works */}

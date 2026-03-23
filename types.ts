@@ -12,12 +12,21 @@ export interface User {
   email: string;
   role: UserRole;
   organisationId: string;
+  profilePicture?: string;
 }
 
 export interface Organisation {
   id: string;
+  _id?: string;
   name: string;
   code: string;
+  description?: string;
+  mission?: string;
+  history?: string;
+  logo?: string;
+  impactStories?: { title: string; content: string; image?: string }[];
+  trackRecord?: string;
+  foundedAt?: string;
 }
 
 export interface Programme {

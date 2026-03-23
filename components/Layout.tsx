@@ -38,7 +38,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, organisation, onLogout 
         const data = await response.json();
         if (data.success) setBroadcasts(data.data);
       } catch (err) {
-        console.error('Failed to fetch broadcasts', err);
+        // Silently fail or handle error
       }
     };
     fetchBroadcasts();
@@ -49,7 +49,8 @@ const Layout: React.FC<LayoutProps> = ({ children, user, organisation, onLogout 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: Object.values(UserRole), path: '/app/dashboard' },
     { id: 'admin', label: 'Platform Admin', icon: ShieldCheck, roles: [UserRole.SUPER_ADMIN], path: '/app/admin' },
-    { id: 'programmes', label: 'Programmes', icon: Calendar, roles: Object.values(UserRole), path: '/app/programmes' },
+    { id: 'my-programmes', label: 'My Programmes', icon: Calendar, roles: [UserRole.MEMBER, UserRole.COORDINATOR, UserRole.ORG_ADMIN], path: '/app/my-programmes' },
+    { id: 'programmes', label: 'Browse Hub', icon: Megaphone, roles: Object.values(UserRole), path: '/app/programmes' },
     { id: 'stress', label: 'Stress Check', icon: Activity, roles: [UserRole.MEMBER, UserRole.COORDINATOR, UserRole.ORG_ADMIN], path: '/app/stress' },
     { id: 'members', label: 'Members', icon: Users, roles: [UserRole.ORG_ADMIN, UserRole.COORDINATOR], path: '/app/members' },
   ];
@@ -91,8 +92,12 @@ const Layout: React.FC<LayoutProps> = ({ children, user, organisation, onLogout 
             to="/app/profile"
             className="w-full flex items-center space-x-3 mb-4 px-2 hover:bg-indigo-800 p-2 rounded-lg transition-colors text-left"
           >
-            <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-sm">
-              {user.name.charAt(0)}
+            <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-sm overflow-hidden border border-indigo-400">
+              {user.profilePicture ? (
+                <img src={user.profilePicture} alt={user.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                user.name.charAt(0)
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{user.name}</p>

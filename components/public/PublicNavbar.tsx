@@ -24,6 +24,7 @@ const PublicNavbar: React.FC<PublicNavbarProps> = ({ user, organisation, onLogou
   const navLinks = [
     { label: 'Home', path: '/' },
     { label: 'Programmes', path: '/programmes' },
+    { label: 'Organisations', path: '/organisations' },
     { label: 'Host a Hub', path: '/host-hub' },
     { label: 'About', path: '/about' },
     { label: 'Contact', path: '/contact' },

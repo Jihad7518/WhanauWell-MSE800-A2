@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, Programme } from '../types';
-import { Plus, Search, MapPin, Clock, Users, ExternalLink, Trash2, X, Info } from 'lucide-react';
+import { Plus, Search, MapPin, Clock, Users, ExternalLink, Trash2, X, Info, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface ProgrammesProps {
   user: User;
@@ -11,9 +11,19 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
   const isCoordinator = user.role === UserRole.COORDINATOR || user.role === UserRole.ORG_ADMIN;
   
   const [programmes, setProgrammes] = useState<Programme[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editingProgramme, setEditingProgramme] = useState<Programme | null>(null);
   const [selectedProgramme, setSelectedProgramme] = useState<Programme | null>(null);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  
+  // Confirmation Modal State
+  const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; id: string | null }>({
+    isOpen: false,
+    id: null
+  });
+
   const [newProgramme, setNewProgramme] = useState({
     title: '',
     publicSummary: '',
@@ -46,9 +56,13 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     try {
-      const response = await fetch('/api/programmes', {
-        method: 'POST',
+      const url = editingProgramme ? `/api/programmes/${editingProgramme._id}` : '/api/programmes';
+      const method = editingProgramme ? 'PATCH' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
@@ -59,6 +73,7 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
       if (data.success) {
         fetchProgrammes();
         setShowModal(false);
+        setEditingProgramme(null);
         setNewProgramme({ 
           title: '', 
           publicSummary: '', 
@@ -68,10 +83,30 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
           location: '', 
           category: 'Health & Wellbeing' 
         });
+        setNotification({ type: 'success', message: `Programme ${editingProgramme ? 'updated' : 'created'} successfully!` });
+      } else {
+        setNotification({ type: 'error', message: data.message || 'Failed to save programme' });
       }
     } catch (error) {
-      console.error('Create error:', error);
+      setNotification({ type: 'error', message: 'Connection error. Please try again.' });
+    } finally {
+      setLoading(false);
+      setTimeout(() => setNotification(null), 5000);
     }
+  };
+
+  const handleEdit = (p: Programme) => {
+    setEditingProgramme(p);
+    setNewProgramme({
+      title: p.title,
+      publicSummary: p.publicSummary,
+      memberDetails: p.memberDetails || '',
+      visibility: p.visibility as any,
+      startDate: p.startDate.split('T')[0],
+      location: p.location,
+      category: p.category
+    });
+    setShowModal(true);
   };
 
   const handleJoinLeave = async (id: string, isJoining: boolean) => {
@@ -87,27 +122,44 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
         if (selectedProgramme && selectedProgramme._id === id) {
           setSelectedProgramme(data.data);
         }
+        setNotification({ type: 'success', message: `Successfully ${isJoining ? 'joined' : 'left'} the programme.` });
       }
     } catch (error) {
-      console.error('Join/Leave error:', error);
+      setNotification({ type: 'error', message: 'Failed to update enrollment.' });
+    } finally {
+      setTimeout(() => setNotification(null), 5000);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this programme?')) return;
+  const handleDelete = async () => {
+    if (!confirmDelete.id) return;
+    
     try {
-      const response = await fetch(`/api/programmes/${id}`, {
+      const response = await fetch(`/api/programmes/${confirmDelete.id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
       });
       const data = await response.json();
       if (data.success) {
         fetchProgrammes();
+        setNotification({ type: 'success', message: 'Programme deleted successfully.' });
+      } else {
+        setNotification({ type: 'error', message: data.message || 'Failed to delete programme.' });
       }
     } catch (error) {
-      console.error('Delete error:', error);
+      setNotification({ type: 'error', message: 'Connection error.' });
+    } finally {
+      setConfirmDelete({ isOpen: false, id: null });
+      setTimeout(() => setNotification(null), 5000);
     }
   };
+
+  const filteredProgrammes = programmes.filter(p => 
+    p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.publicSummary.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.location?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-8">
@@ -117,10 +169,10 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="bg-indigo-600 p-6 text-white flex justify-between items-center">
               <div>
-                <h2 className="text-xl font-bold">Create New Programme</h2>
-                <p className="text-indigo-100 text-sm">Launch a new community initiative.</p>
+                <h2 className="text-xl font-bold">{editingProgramme ? 'Edit Programme' : 'Create New Programme'}</h2>
+                <p className="text-indigo-100 text-sm">{editingProgramme ? 'Update your community initiative.' : 'Launch a new community initiative.'}</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+              <button onClick={() => { setShowModal(false); setEditingProgramme(null); }} className="p-2 hover:bg-white/10 rounded-full transition-colors">
                 <X className="w-6 h-6" />
               </button>
             </div>
@@ -133,9 +185,22 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Public Summary (Short)</label>
                 <textarea required rows={2} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Short description for public browsing..." value={newProgramme.publicSummary} onChange={e => setNewProgramme({...newProgramme, publicSummary: e.target.value})} />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Member Details (Full)</label>
-                <textarea required rows={4} className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Full details, resources, links (Markdown supported)..." value={newProgramme.memberDetails} onChange={e => setNewProgramme({...newProgramme, memberDetails: e.target.value})} />
+              <div className="space-y-1">
+                <label className="block text-sm font-semibold text-slate-700 flex items-center justify-between">
+                  <span>Member Details (Full)</span>
+                  <span className="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">Participants Only</span>
+                </label>
+                <p className="text-[11px] text-slate-500 italic">
+                  Example: "Meeting at the main hall. Bring your own mat and water. Access code for the gym is 1234."
+                </p>
+                <textarea 
+                  required 
+                  rows={4} 
+                  className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" 
+                  placeholder="Full details, resources, links (Markdown supported)..." 
+                  value={newProgramme.memberDetails} 
+                  onChange={e => setNewProgramme({...newProgramme, memberDetails: e.target.value})} 
+                />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Visibility</label>
@@ -156,7 +221,17 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
               </div>
               <div className="flex space-x-3 pt-4">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-6 py-2.5 rounded-xl font-semibold text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
-                <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-100 transition-all">Create Programme</button>
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-100 transition-all flex items-center justify-center"
+                >
+                  {loading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    'Create Programme'
+                  )}
+                </button>
               </div>
             </form>
           </div>
@@ -224,17 +299,37 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
           <p className="text-slate-500">Manage and join local wellbeing initiatives.</p>
         </div>
         {isCoordinator && (
-          <button onClick={() => setShowModal(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-100 transition-all flex items-center space-x-2">
+          <button onClick={() => { setEditingProgramme(null); setShowModal(true); }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-indigo-100 transition-all flex items-center space-x-2">
             <Plus className="w-5 h-5" />
             <span>Create New Programme</span>
           </button>
         )}
       </div>
 
+      {notification && (
+        <div className={`p-4 rounded-xl flex items-center justify-between animate-in slide-in-from-top duration-300 ${
+          notification.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'
+        }`}>
+          <div className="flex items-center space-x-3">
+            {notification.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+            <p className="text-sm font-medium">{notification.message}</p>
+          </div>
+          <button onClick={() => setNotification(null)} className="p-1 hover:bg-white/50 rounded-full transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center space-x-4 bg-white p-2 rounded-xl shadow-sm border border-slate-100">
         <div className="flex-1 flex items-center px-4">
           <Search className="w-5 h-5 text-slate-400 mr-2" />
-          <input type="text" placeholder="Search programmes..." className="w-full bg-transparent border-none outline-none py-2 text-slate-600" />
+          <input 
+            type="text" 
+            placeholder="Search programmes..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-transparent border-none outline-none py-2 text-slate-600" 
+          />
         </div>
         <div className="h-8 w-px bg-slate-200"></div>
         <button className="px-6 py-2 text-slate-500 font-medium hover:text-indigo-600">Filters</button>
@@ -244,32 +339,47 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
         <div className="flex justify-center py-20">
           <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
         </div>
-      ) : programmes.length === 0 ? (
+      ) : filteredProgrammes.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-300">
           <Info className="w-12 h-12 text-slate-300 mx-auto mb-4" />
           <h3 className="text-lg font-bold text-slate-800">No programmes found</h3>
-          <p className="text-slate-500">Check back later or create a new one if you're a coordinator.</p>
+          <p className="text-slate-500">Try adjusting your search or filters.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {programmes.map((p) => (
+          {filteredProgrammes.map((p) => (
             <div key={p._id} onClick={() => setSelectedProgramme(p)} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all cursor-pointer group">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full uppercase tracking-wider mb-2">
-                    {p.category || 'Health & Wellbeing'}
-                  </span>
+                  <div className="flex items-center space-x-2 mb-2">
+                    <span className="inline-block px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full uppercase tracking-wider">
+                      {p.category || 'Health & Wellbeing'}
+                    </span>
+                    <span className={`inline-block px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider ${
+                      p.visibility === 'PUBLIC' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                    }`}>
+                      {p.visibility === 'PUBLIC' ? 'Public' : 'Organisation Only'}
+                    </span>
+                    {(p.organisationId as any)?._id === user.organisationId && (
+                      <span className="inline-block px-3 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-full uppercase tracking-wider">
+                        Our Org
+                      </span>
+                    )}
+                  </div>
                   <h3 className="text-xl font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{p.title}</h3>
+                  <p className="text-xs text-slate-400 font-medium mt-1">By {(p.organisationId as any)?.name || 'WhānauWell'}</p>
                 </div>
                 <div className="flex space-x-2">
-                  {isCoordinator && (
-                    <button onClick={(e) => { e.stopPropagation(); handleDelete(p._id!); }} className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors">
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                  {isCoordinator && (p.organisationId as any)?._id === user.organisationId && (
+                    <>
+                      <button onClick={(e) => { e.stopPropagation(); handleEdit(p); }} className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors">
+                        <Plus className="w-5 h-5 rotate-45" /> {/* Using Plus rotated as a simple edit icon for now, or just use a text or another icon */}
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmDelete({ isOpen: true, id: p._id! }); }} className="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors">
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </>
                   )}
-                  <button className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors">
-                    <ExternalLink className="w-5 h-5" />
-                  </button>
                 </div>
               </div>
               
@@ -312,6 +422,45 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {confirmDelete.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-rose-50/50">
+              <h3 className="text-lg font-black text-slate-900 flex items-center">
+                <Trash2 className="w-5 h-5 mr-2 text-rose-500" />
+                Delete Programme
+              </h3>
+              <button 
+                onClick={() => setConfirmDelete({ isOpen: false, id: null })}
+                className="p-2 hover:bg-white rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Are you sure you want to delete this programme? This action cannot be undone and all participant data for this programme will be lost.
+              </p>
+              <div className="flex space-x-3 pt-2">
+                <button
+                  onClick={() => setConfirmDelete({ isOpen: false, id: null })}
+                  className="flex-1 px-4 py-3 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="flex-1 px-4 py-3 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-700 transition-all shadow-lg shadow-rose-100"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

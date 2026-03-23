@@ -12,6 +12,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdateUser }) => {
   const [formData, setFormData] = useState({
     name: user.name,
     email: user.email,
+    profilePicture: user.profilePicture || '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -40,6 +41,7 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdateUser }) => {
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
+          profilePicture: formData.profilePicture,
           currentPassword: formData.currentPassword,
           newPassword: formData.newPassword
         })
@@ -70,8 +72,12 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdateUser }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 text-center">
-            <div className="w-24 h-24 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <UserIcon className="w-12 h-12" />
+            <div className="w-24 h-24 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden border-4 border-white shadow-md">
+              {user.profilePicture ? (
+                <img src={user.profilePicture} alt={user.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                <UserIcon className="w-12 h-12" />
+              )}
             </div>
             <h2 className="text-xl font-bold text-slate-900">{user.name}</h2>
             <p className="text-slate-500 text-sm mb-4">{user.email}</p>
@@ -129,6 +135,20 @@ const Profile: React.FC<ProfileProps> = ({ user, onUpdateUser }) => {
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700 flex items-center">
+                  <UserIcon className="w-4 h-4 mr-2 text-slate-400" />
+                  Profile Picture URL
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://example.com/photo.jpg"
+                  value={formData.profilePicture}
+                  onChange={(e) => setFormData({ ...formData, profilePicture: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
+                />
+                <p className="text-[10px] text-slate-400">Paste a link to an image (e.g. from Unsplash or your social media).</p>
               </div>
             </div>
 

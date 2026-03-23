@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Megaphone,
   XCircle,
+  X,
   Edit,
   History,
   Heart,
@@ -44,6 +45,9 @@ import {
 
 const SuperAdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'organisations' | 'users' | 'programmes' | 'tickets' | 'settings' | 'org-applications'>('overview');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [isMounted, setIsMounted] = useState(false);
   const [organisations, setOrganisations] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [programmes, setProgrammes] = useState<any[]>([]);
@@ -53,8 +57,6 @@ const SuperAdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [newOrg, setNewOrg] = useState({ name: '', code: '' });
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [broadcastMessage, setBroadcastMessage] = useState('');
@@ -73,6 +75,31 @@ const SuperAdminDashboard: React.FC = () => {
   const [selectedOrg, setSelectedOrg] = useState<any>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    show: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    type: 'success' | 'error';
+    message: string;
+  }>({
+    show: false,
+    type: 'success',
+    message: ''
+  });
+
+  const showNotification = (type: 'success' | 'error', message: string) => {
+    setNotification({ show: true, type, message });
+    setTimeout(() => setNotification({ ...notification, show: false }), 5000);
+  };
 
   const [newProgramme, setNewProgramme] = useState({
     title: '',
@@ -84,13 +111,45 @@ const SuperAdminDashboard: React.FC = () => {
     category: 'Wellbeing'
   });
 
-  const fetchData = async () => {
-    setLoading(true);
-    console.log('Fetching dashboard data...');
+  // Filtered Data
+  const filteredOrganisations = organisations.filter(org => 
+    org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    org.code.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredUsers = users.filter(user => 
+    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.role.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredProgrammes = programmes.filter(prog => 
+    prog.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    prog.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    prog.organisationId?.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredTickets = tickets.filter(ticket => {
+    const matchesSearch = ticket.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         ticket.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         ticket.userId?.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'all' || ticket.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  const filteredApplications = orgApplications.filter(app => {
+    const matchesSearch = app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         app.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         app.contactName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'all' || app.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const token = localStorage.getItem('whanauwell_token');
       if (!token) {
-        console.error('No token found');
         return;
       }
 
@@ -121,20 +180,6 @@ const SuperAdminDashboard: React.FC = () => {
         logsData, insightsData, ticketsData, settingsData, healthData, orgAppsData
       ] = results;
       
-      console.log('Dashboard Data Status:', {
-        orgs: orgsRes.status,
-        stats: statsRes.status,
-        users: usersRes.status,
-        progs: progsRes.status
-      });
-
-      console.log('Dashboard Data Payload:', {
-        orgs: orgsData,
-        stats: statsData,
-        users: usersData,
-        progs: progsData
-      });
-
       if (orgsData.success) setOrganisations(orgsData.data);
       if (statsData.success) setStats(statsData.data);
       if (usersData.success) setUsers(usersData.data);
@@ -147,18 +192,19 @@ const SuperAdminDashboard: React.FC = () => {
       if (healthData.success) setSystemHealth(healthData.data);
       if (orgAppsData.success) setOrgApplications(orgAppsData.data);
       
-      setSuccess('Dashboard data refreshed successfully');
+      if (!silent) showNotification('success', 'Dashboard data refreshed successfully');
     } catch (err) {
       console.error('Fetch error:', err);
-      setError('Failed to refresh dashboard data. Please check your connection.');
+      if (!silent) showNotification('error', 'Failed to refresh dashboard data. Please check your connection.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
+    setIsMounted(true);
     fetchData();
-    const interval = setInterval(fetchData, 30000); // Refresh every 30s
+    const interval = setInterval(() => fetchData(true), 30000); // Refresh every 30s silently
     return () => clearInterval(interval);
   }, []);
 
@@ -174,11 +220,11 @@ const SuperAdminDashboard: React.FC = () => {
       });
       const data = await response.json();
       if (data.success) {
-        setSuccess('Ticket updated');
+        showNotification('success', 'Ticket updated');
         fetchData();
       }
     } catch (err) {
-      setError('Failed to update ticket');
+      showNotification('error', 'Failed to update ticket');
     }
   };
 
@@ -200,14 +246,14 @@ const SuperAdminDashboard: React.FC = () => {
             code: data.organisation.code,
             adminSecret: data.adminSecret
           });
-          setSuccess(`Hub "${data.organisation.name}" approved and created!`);
+          showNotification('success', `Hub "${data.organisation.name}" approved and created!`);
         } else {
-          setSuccess(`Application ${status.toLowerCase()}`);
+          showNotification('success', `Application ${status.toLowerCase()}`);
         }
         fetchData();
       }
     } catch (err) {
-      setError('Failed to update application');
+      showNotification('error', 'Failed to update application');
     }
   };
 
@@ -220,14 +266,14 @@ const SuperAdminDashboard: React.FC = () => {
       });
       const data = await response.json();
       if (data.success) {
-        setSuccess('Platform data initialized successfully!');
-        console.log('Seed counts from server:', data.counts);
+        showNotification('success', 'Platform data initialized successfully!');
+        // Seed counts from server
         fetchData();
       } else {
-        setError(data.message || 'Failed to seed data');
+        showNotification('error', data.message || 'Failed to seed data');
       }
     } catch (err) {
-      setError('Connection error while seeding');
+      showNotification('error', 'Connection error while seeding');
     } finally {
       setLoading(false);
     }
@@ -246,30 +292,40 @@ const SuperAdminDashboard: React.FC = () => {
       });
       const data = await response.json();
       if (data.success) {
-        setSuccess('Settings saved');
+        showNotification('success', 'Settings saved');
         setShowSettingsModal(false);
         fetchData();
       }
     } catch (err) {
-      setError('Failed to save settings');
+      showNotification('error', 'Failed to save settings');
     }
   };
 
   const handleClearLogs = async () => {
-    if (!window.confirm('Are you sure you want to clear all system logs? This cannot be undone.')) return;
-    try {
-      const response = await fetch('/api/admin/logs', {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
-      });
-      const data = await response.json();
-      if (data.success) {
-        setSuccess('Logs cleared');
-        fetchData();
+    setShowConfirmModal({
+      show: true,
+      title: 'Clear System Logs',
+      message: 'Are you sure you want to clear all system logs? This cannot be undone.',
+      onConfirm: async () => {
+        try {
+          const response = await fetch('/api/admin/logs', {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
+          });
+          const data = await response.json();
+          if (data.success) {
+            showNotification('success', 'Logs cleared successfully');
+            fetchData();
+          } else {
+            showNotification('error', data.message || 'Failed to clear logs');
+          }
+        } catch (err) {
+          showNotification('error', 'Failed to clear logs');
+        } finally {
+          setShowConfirmModal(prev => ({ ...prev, show: false }));
+        }
       }
-    } catch (err) {
-      setError('Failed to clear logs');
-    }
+    });
   };
 
   const handleBroadcast = async (e: React.FormEvent) => {
@@ -288,14 +344,14 @@ const SuperAdminDashboard: React.FC = () => {
       });
       const data = await response.json();
       if (data.success) {
-        setSuccess(editingBroadcast ? 'Broadcast updated!' : 'Broadcast sent successfully!');
+        showNotification('success', editingBroadcast ? 'Broadcast updated!' : 'Broadcast sent successfully!');
         setBroadcastMessage('');
         setShowBroadcastModal(false);
         setEditingBroadcast(null);
         fetchData();
       }
     } catch (err) {
-      setError('Failed to process broadcast');
+      showNotification('error', 'Failed to process broadcast');
     }
   };
 
@@ -312,7 +368,7 @@ const SuperAdminDashboard: React.FC = () => {
       });
       const data = await response.json();
       if (data.success) {
-        setSuccess('Global programme hosted successfully!');
+        showNotification('success', 'Global programme hosted successfully!');
         setShowProgrammeModal(false);
         setNewProgramme({
           title: '',
@@ -326,7 +382,7 @@ const SuperAdminDashboard: React.FC = () => {
         fetchData();
       }
     } catch (err) {
-      setError('Failed to host programme');
+      showNotification('error', 'Failed to host programme');
     }
   };
 
@@ -338,11 +394,11 @@ const SuperAdminDashboard: React.FC = () => {
       });
       const data = await response.json();
       if (data.success) {
-        setSuccess('Broadcast deleted');
+        showNotification('success', 'Broadcast deleted');
         fetchData();
       }
     } catch (err) {
-      setError('Failed to delete broadcast');
+      showNotification('error', 'Failed to delete broadcast');
     }
   };
 
@@ -359,20 +415,19 @@ const SuperAdminDashboard: React.FC = () => {
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
+      showNotification('success', 'Audit report generated');
     } catch (err) {
-      setError('Failed to generate report');
+      showNotification('error', 'Failed to generate report');
     }
   };
 
   const toggleMaintenance = () => {
     setIsMaintenanceMode(!isMaintenanceMode);
-    setSuccess(`Maintenance mode ${!isMaintenanceMode ? 'enabled' : 'disabled'}`);
+    showNotification('success', `Maintenance mode ${!isMaintenanceMode ? 'enabled' : 'disabled'}`);
   };
 
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
     
     try {
       const response = await fetch('/api/admin/organisations', {
@@ -386,15 +441,15 @@ const SuperAdminDashboard: React.FC = () => {
       
       const data = await response.json();
       if (data.success) {
-        setSuccess(`Organisation "${newOrg.name}" created successfully!`);
+        showNotification('success', `Organisation "${newOrg.name}" created successfully!`);
         setNewOrg({ name: '', code: '' });
         setShowModal(false);
         fetchData();
       } else {
-        setError(data.message || 'Failed to create organisation');
+        showNotification('error', data.message || 'Failed to create organisation');
       }
     } catch (err) {
-      setError('Connection error');
+      showNotification('error', 'Connection error');
     }
   };
 
@@ -433,8 +488,18 @@ const SuperAdminDashboard: React.FC = () => {
         </div>
         
         <div className="flex items-center space-x-3">
+          <div className="relative hidden md:block">
+            <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Global search..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-11 pr-6 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 w-64 shadow-sm transition-all"
+            />
+          </div>
           <button 
-            onClick={fetchData}
+            onClick={() => fetchData()}
             className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all flex items-center space-x-2"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -482,6 +547,32 @@ const SuperAdminDashboard: React.FC = () => {
           </button>
         ))}
       </div>
+
+      {searchTerm && (
+        <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex items-center space-x-6 animate-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center space-x-2">
+            <Search className="w-4 h-4 text-indigo-500" />
+            <span className="text-sm font-bold text-indigo-900">Search Results:</span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <button onClick={() => setActiveTab('organisations')} className="text-xs font-bold text-indigo-600 hover:underline">
+              {filteredOrganisations.length} Organisations
+            </button>
+            <button onClick={() => setActiveTab('users')} className="text-xs font-bold text-indigo-600 hover:underline">
+              {filteredUsers.length} Users
+            </button>
+            <button onClick={() => setActiveTab('programmes')} className="text-xs font-bold text-indigo-600 hover:underline">
+              {filteredProgrammes.length} Programmes
+            </button>
+            <button onClick={() => setActiveTab('tickets')} className="text-xs font-bold text-indigo-600 hover:underline">
+              {filteredTickets.length} Tickets
+            </button>
+          </div>
+          <button onClick={() => setSearchTerm('')} className="ml-auto text-indigo-400 hover:text-indigo-600">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Overview Tab */}
       {activeTab === 'overview' && (
@@ -561,23 +652,25 @@ const SuperAdminDashboard: React.FC = () => {
                   <span>High Stress</span>
                 </div>
               </div>
-              <div className="h-[300px] w-full min-h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={wellbeingInsights.map(i => ({ name: i.org.name, score: i.avgStress }))}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} domain={[0, 10]} />
-                    <Tooltip 
-                      cursor={{fill: '#f8fafc'}}
-                      contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
-                    />
-                    <Bar dataKey="score" radius={[8, 8, 0, 0]}>
-                      {wellbeingInsights.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.avgStress > 7 ? '#f43f5e' : entry.avgStress > 4 ? '#f59e0b' : '#10b981'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+              <div className="h-[300px] w-full">
+                {isMounted && (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={wellbeingInsights.map(i => ({ name: i.org.name, score: i.avgStress }))}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} domain={[0, 10]} />
+                      <Tooltip 
+                        cursor={{fill: '#f8fafc'}}
+                        contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
+                      />
+                      <Bar dataKey="score" radius={[8, 8, 0, 0]}>
+                        {wellbeingInsights.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.avgStress > 7 ? '#f43f5e' : entry.avgStress > 4 ? '#f59e0b' : '#10b981'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
           </div>
@@ -813,7 +906,7 @@ const SuperAdminDashboard: React.FC = () => {
                     <button 
                       onClick={() => {
                         navigator.clipboard.writeText(approvedOrgInfo.code);
-                        setSuccess('Code copied to clipboard!');
+                        showNotification('success', 'Code copied to clipboard!');
                       }}
                       className="text-slate-400 hover:text-indigo-600 transition-colors"
                     >
@@ -828,7 +921,7 @@ const SuperAdminDashboard: React.FC = () => {
                     <button 
                       onClick={() => {
                         navigator.clipboard.writeText(approvedOrgInfo.adminSecret);
-                        setSuccess('Secret copied to clipboard!');
+                        showNotification('success', 'Secret copied to clipboard!');
                       }}
                       className="text-slate-400 hover:text-rose-600 transition-colors"
                     >
@@ -845,9 +938,36 @@ const SuperAdminDashboard: React.FC = () => {
           )}
 
           <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="p-8 border-b border-slate-50">
-            <h2 className="text-xl font-black text-slate-900">Hub Onboarding Requests</h2>
-            <p className="text-slate-400 text-sm font-medium">Review and manage requests from new organisations (Hubs) wanting to join the platform.</p>
+          <div className="p-8 border-b border-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-black text-slate-900">Hub Onboarding Requests</h2>
+              <p className="text-slate-400 text-sm font-medium">Review and manage requests from new organisations (Hubs) wanting to join the platform.</p>
+            </div>
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search requests..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-11 pr-6 py-2 bg-slate-50 border-none rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 w-full md:w-64"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Filter className="w-4 h-4 text-slate-400" />
+                <select 
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="text-xs font-bold border-slate-200 rounded-xl bg-slate-50 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="all">All Status</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="REJECTED">Rejected</option>
+                </select>
+              </div>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -861,12 +981,12 @@ const SuperAdminDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {orgApplications.length === 0 ? (
+                {filteredApplications.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-8 py-20 text-center text-slate-400 italic">No onboarding requests found.</td>
                   </tr>
                 ) : (
-                  orgApplications.map((app) => (
+                  filteredApplications.map((app) => (
                     <tr key={app._id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-8 py-5">
                         <span className="font-bold text-slate-900 block">{app.name}</span>
@@ -929,6 +1049,8 @@ const SuperAdminDashboard: React.FC = () => {
               <input 
                 type="text" 
                 placeholder="Search by name or code..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-11 pr-6 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 w-full md:w-80"
               />
             </div>
@@ -947,7 +1069,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {organisations.map((org) => (
+                {filteredOrganisations.map((org) => (
                   <tr 
                     key={org._id} 
                     className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
@@ -1019,6 +1141,8 @@ const SuperAdminDashboard: React.FC = () => {
                 <input 
                   type="text" 
                   placeholder="Search by name or email..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-11 pr-6 py-3 bg-slate-50 border-none rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 w-full md:w-80"
                 />
               </div>
@@ -1037,7 +1161,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {users.map((user) => (
+                {filteredUsers.map((user) => (
                   <tr 
                     key={user._id} 
                     className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
@@ -1121,7 +1245,7 @@ const SuperAdminDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {programmes.map((prog) => (
+                {filteredProgrammes.map((prog) => (
                   <tr key={prog._id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-8 py-5">
                       <div className="flex items-center">
@@ -1409,6 +1533,20 @@ const SuperAdminDashboard: React.FC = () => {
               <h2 className="text-xl font-black text-slate-900">Support Desk</h2>
               <p className="text-slate-400 text-sm font-medium">Manage and respond to support tickets submitted by users and organisation administrators.</p>
             </div>
+            <div className="flex items-center space-x-2">
+              <Filter className="w-4 h-4 text-slate-400" />
+              <select 
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="text-xs font-bold border-slate-200 rounded-xl bg-slate-50 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="all">All Status</option>
+                <option value="OPEN">Open</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="RESOLVED">Resolved</option>
+                <option value="CLOSED">Closed</option>
+              </select>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -1422,12 +1560,12 @@ const SuperAdminDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {tickets.length === 0 ? (
+                {filteredTickets.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-8 py-20 text-center text-slate-400 italic">No support tickets found.</td>
                   </tr>
                 ) : (
-                  tickets.map((ticket) => (
+                  filteredTickets.map((ticket) => (
                     <tr key={ticket._id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-8 py-5">
                         <span className="font-bold text-slate-900 block">{ticket.subject}</span>
@@ -1694,12 +1832,6 @@ const SuperAdminDashboard: React.FC = () => {
             </div>
             
             <form onSubmit={handleCreateOrg} className="p-10 space-y-8">
-              {error && (
-                <div className="p-4 bg-rose-50 text-rose-700 rounded-2xl flex items-center text-sm font-bold">
-                  <AlertCircle className="w-4 h-4 mr-3" /> {error}
-                </div>
-              )}
-              
               <div className="space-y-3">
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Organisation Name</label>
                 <input 
@@ -1742,6 +1874,49 @@ const SuperAdminDashboard: React.FC = () => {
               </div>
             </form>
           </div>
+        </div>
+      )}
+      {/* Confirmation Modal */}
+      {showConfirmModal.show && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <AlertCircle className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 mb-2">{showConfirmModal.title}</h3>
+              <p className="text-slate-500 text-sm font-medium leading-relaxed">
+                {showConfirmModal.message}
+              </p>
+            </div>
+            <div className="flex border-t border-slate-100">
+              <button 
+                onClick={() => setShowConfirmModal(prev => ({ ...prev, show: false }))}
+                className="flex-1 py-4 text-sm font-black text-slate-400 hover:bg-slate-50 transition-all uppercase tracking-widest"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={showConfirmModal.onConfirm}
+                className="flex-1 py-4 text-sm font-black text-rose-500 hover:bg-rose-50 transition-all uppercase tracking-widest border-l border-slate-100"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notification Toast */}
+      {notification.show && (
+        <div className={`fixed bottom-8 right-8 z-[100] flex items-center space-x-3 px-6 py-4 rounded-2xl shadow-2xl animate-in slide-in-from-right-10 duration-300 ${
+          notification.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+        }`}>
+          {notification.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+          <span className="font-bold text-sm">{notification.message}</span>
+          <button onClick={() => setNotification({ ...notification, show: false })} className="hover:opacity-70">
+            <XCircle className="w-4 h-4" />
+          </button>
         </div>
       )}
     </div>

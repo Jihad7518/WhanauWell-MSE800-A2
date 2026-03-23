@@ -7,6 +7,7 @@ export interface IUser extends Document {
   passwordHash: string;
   role: 'SUPER_ADMIN' | 'ORG_ADMIN' | 'COORDINATOR' | 'MEMBER';
   organisationId: mongoose.Types.ObjectId;
+  profilePicture?: string;
 }
 
 const UserSchema: Schema = new Schema({
@@ -18,7 +19,8 @@ const UserSchema: Schema = new Schema({
     enum: ['SUPER_ADMIN', 'ORG_ADMIN', 'COORDINATOR', 'MEMBER'], 
     default: 'MEMBER' 
   },
-  organisationId: { type: Schema.Types.ObjectId, ref: 'Organisation', required: true }
+  organisationId: { type: Schema.Types.ObjectId, ref: 'Organisation', required: true },
+  profilePicture: { type: String, default: '' }
 }, { timestamps: true });
 
 export default mongoose.model<IUser>('User', UserSchema);

@@ -40,6 +40,45 @@ const About: React.FC = () => {
           Originally developed to support the Waitaha Health Trust, WhānauWell has grown into a multi-tenant platform that can be adapted for any community organisation looking to bridge the gap between service delivery and wellbeing insight.
         </p>
       </div>
+
+      <div className="pt-20 border-t border-slate-100">
+        <div className="text-center space-y-4 mb-16">
+          <h2 className="text-3xl font-black text-slate-900">Project Credits</h2>
+          <p className="text-slate-500 max-w-xl mx-auto">
+            WhānauWell was developed as a capstone project for the <strong>MSE800</strong> course, focusing on community-led digital transformation.
+          </p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="bg-white p-10 rounded-[40px] shadow-sm border border-slate-100 text-center group hover:border-indigo-200 transition-all">
+            <div className="w-24 h-24 bg-indigo-600 rounded-[32px] flex items-center justify-center text-white text-3xl font-black mx-auto mb-6 shadow-xl shadow-indigo-100 group-hover:scale-105 transition-transform">
+              MJ
+            </div>
+            <h3 className="text-2xl font-black text-slate-900">Md Jihad</h3>
+            <p className="text-indigo-600 font-bold text-sm uppercase tracking-widest mb-4">Lead Full Stack Developer</p>
+            <div className="pt-6 border-t border-slate-50">
+              <p className="text-slate-400 text-xs font-medium">Student ID: 270738616</p>
+            </div>
+          </div>
+          
+          <div className="bg-white p-10 rounded-[40px] shadow-sm border border-slate-100 text-center group hover:border-slate-300 transition-all">
+            <div className="w-24 h-24 bg-slate-900 rounded-[32px] flex items-center justify-center text-white text-3xl font-black mx-auto mb-6 shadow-xl shadow-slate-200 group-hover:scale-105 transition-transform">
+              AB
+            </div>
+            <h3 className="text-2xl font-black text-slate-900">Andre Bendetti</h3>
+            <p className="text-slate-600 font-bold text-sm uppercase tracking-widest mb-4">Backend Systems Architect</p>
+            <div className="pt-6 border-t border-slate-50">
+              <p className="text-slate-400 text-xs font-medium">MSE800 Research Team</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="mt-16 text-center">
+          <div className="inline-flex items-center px-6 py-2 bg-slate-100 rounded-full text-slate-500 text-xs font-bold uppercase tracking-[0.2em]">
+            MSE800 Course Project • 2026
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

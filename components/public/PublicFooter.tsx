@@ -23,6 +23,7 @@ const PublicFooter: React.FC = () => {
             <li><Link to="/" className="hover:text-indigo-600 transition-colors">Home</Link></li>
             <li><Link to="/programmes" className="hover:text-indigo-600 transition-colors">Programmes</Link></li>
             <li><Link to="/host-hub" className="hover:text-indigo-600 transition-colors font-bold text-indigo-600">Host a Hub</Link></li>
+            <li><Link to="/user-manual" className="hover:text-indigo-600 transition-colors">User Manual</Link></li>
             <li><Link to="/about" className="hover:text-indigo-600 transition-colors">About Us</Link></li>
             <li><Link to="/contact" className="hover:text-indigo-600 transition-colors">Contact</Link></li>
           </ul>
@@ -47,8 +48,13 @@ const PublicFooter: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 mt-20 pt-8 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
-        <p className="text-xs text-slate-400">© {new Date().getFullYear()} WhānauWell. All rights reserved.</p>
+      <div className="max-w-7xl mx-auto px-6 mt-20 pt-8 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-6">
+        <div className="space-y-1">
+          <p className="text-xs text-slate-400">© {new Date().getFullYear()} WhānauWell. All rights reserved.</p>
+          <p className="text-[10px] text-slate-400 font-medium">
+            Developed by <span className="text-slate-600 font-bold">Md Jihad</span> & <span className="text-slate-600 font-bold">Andre Bendetti</span> for MSE800
+          </p>
+        </div>
         <div className="flex space-x-6">
           <a href="#" className="text-slate-400 hover:text-indigo-600 transition-colors"><ShieldCheck className="w-5 h-5" /></a>
         </div>

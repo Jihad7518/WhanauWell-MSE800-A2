@@ -8,6 +8,8 @@ import Programmes from './pages/Programmes';
 import StressAssessment from './pages/StressAssessment';
 import Members from './pages/Members';
 import Profile from './pages/Profile';
+import MyProgrammes from './pages/MyProgrammes';
+import OrganisationProfile from './pages/OrganisationProfile';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import Layout from './components/Layout';
 
@@ -15,10 +17,14 @@ import Layout from './components/Layout';
 import Home from './pages/public/Home';
 import PublicProgrammes from './pages/public/PublicProgrammes';
 import PublicProgrammeDetails from './pages/public/PublicProgrammeDetails';
+import OrganisationDetails from './pages/public/OrganisationDetails';
+import PublicOrganisations from './pages/public/PublicOrganisations';
+import MemberApplication from './pages/public/MemberApplication';
 import About from './pages/public/About';
 import Contact from './pages/public/Contact';
 import Privacy from './pages/public/Privacy';
 import HostHub from './pages/public/HostHub';
+import UserManual from './pages/public/UserManual';
 import PublicNavbar from './components/public/PublicNavbar';
 import PublicFooter from './components/public/PublicFooter';
 
@@ -34,17 +40,33 @@ const App: React.FC = () => {
   // Session recovery
   useEffect(() => {
     const savedAuth = localStorage.getItem('whanauwell_auth');
-    if (savedAuth) {
+    const token = localStorage.getItem('whanauwell_token');
+    
+    if (savedAuth && token) {
       try {
-        setAuth(JSON.parse(savedAuth));
+        const parsedAuth = JSON.parse(savedAuth);
+        setAuth({ ...parsedAuth, isAuthenticated: true });
+        
+        // Verify token validity
+        fetch('/api/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).then(res => {
+          if (res.status === 400 || res.status === 401) {
+            handleLogout();
+          }
+        }).catch(() => {
+          // Keep session if it's a connection error, but maybe log it
+        });
       } catch (e) {
         console.error("Failed to parse auth", e);
+        handleLogout();
       }
+    } else {
+      handleLogout();
     }
   }, []);
 
   const handleLogin = (user: User, organisation: any, token?: string) => {
-    console.log('Handling login for:', user.email);
     const newState = { user, organisation, isAuthenticated: true };
     setAuth(newState);
     localStorage.setItem('whanauwell_auth', JSON.stringify(newState));
@@ -54,7 +76,6 @@ const App: React.FC = () => {
     if (token) {
       localStorage.setItem('whanauwell_token', token);
     }
-    console.log('Auth state updated and persisted');
   };
 
   const handleLogout = () => {
@@ -74,10 +95,15 @@ const App: React.FC = () => {
   const isAuthRoute = location.pathname.startsWith('/auth');
 
   // Protected Route Wrapper
-  const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode, requiredRole?: UserRole }) => {
     if (!auth.isAuthenticated || !auth.user) {
       return <Navigate to={`/auth/login?redirect=${location.pathname}`} replace />;
     }
+
+    if (requiredRole && auth.user.role !== requiredRole) {
+      return <Navigate to="/app/dashboard" replace />;
+    }
+
     return (
       <Layout 
         user={auth.user} 
@@ -103,22 +129,28 @@ const App: React.FC = () => {
           <Route path="/" element={<Home />} />
           <Route path="/programmes" element={<PublicProgrammes />} />
           <Route path="/programmes/:id" element={<PublicProgrammeDetails user={auth.user} />} />
+          <Route path="/organisations" element={<PublicOrganisations />} />
+          <Route path="/organisations/:id" element={<OrganisationDetails />} />
+          <Route path="/apply" element={<MemberApplication />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/host-hub" element={<HostHub />} />
+          <Route path="/user-manual" element={<UserManual />} />
 
           {/* Auth Routes */}
           <Route path="/auth/login" element={<Login onLogin={handleLogin} />} />
           <Route path="/auth/register" element={<Login onLogin={handleLogin} />} />
 
           {/* Protected App Routes */}
-          <Route path="/app/dashboard" element={<ProtectedRoute><Dashboard user={auth.user!} /></ProtectedRoute>} />
+          <Route path="/app/dashboard" element={<ProtectedRoute><Dashboard user={auth.user!} organisation={auth.organisation!} /></ProtectedRoute>} />
+          <Route path="/app/my-programmes" element={<ProtectedRoute><MyProgrammes user={auth.user!} /></ProtectedRoute>} />
           <Route path="/app/programmes" element={<ProtectedRoute><Programmes user={auth.user!} /></ProtectedRoute>} />
           <Route path="/app/stress" element={<ProtectedRoute><StressAssessment /></ProtectedRoute>} />
           <Route path="/app/members" element={<ProtectedRoute><Members user={auth.user!} /></ProtectedRoute>} />
+          <Route path="/app/organisation" element={<ProtectedRoute><OrganisationProfile user={auth.user!} /></ProtectedRoute>} />
           <Route path="/app/profile" element={<ProtectedRoute><Profile user={auth.user!} onUpdateUser={handleUpdateUser} /></ProtectedRoute>} />
-          <Route path="/app/admin" element={<ProtectedRoute><SuperAdminDashboard /></ProtectedRoute>} />
+          <Route path="/app/admin" element={<ProtectedRoute requiredRole={UserRole.SUPER_ADMIN}><SuperAdminDashboard /></ProtectedRoute>} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
