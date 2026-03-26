@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   ShieldCheck, 
   Plus, 
@@ -28,7 +29,8 @@ import {
   History,
   Heart,
   Database,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -44,7 +46,17 @@ import {
 } from 'recharts';
 
 const SuperAdminDashboard: React.FC = () => {
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<'overview' | 'organisations' | 'users' | 'programmes' | 'tickets' | 'settings' | 'org-applications'>('overview');
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab');
+    if (tab && ['overview', 'organisations', 'users', 'programmes', 'tickets', 'settings', 'org-applications'].includes(tab)) {
+      setActiveTab(tab as any);
+    }
+  }, [location.search]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [isMounted, setIsMounted] = useState(false);
@@ -71,6 +83,11 @@ const SuperAdminDashboard: React.FC = () => {
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [showProgrammeModal, setShowProgrammeModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showOrgStatusModal, setShowOrgStatusModal] = useState(false);
+  const [orgToManage, setOrgToManage] = useState<any>(null);
+  const [newStatus, setNewStatus] = useState<'ACTIVE' | 'SUSPENDED' | 'BANNED' | 'DELETED'>('ACTIVE');
+  const [statusReason, setStatusReason] = useState('');
+  const [suspensionEnd, setSuspensionEnd] = useState('');
   const [editingBroadcast, setEditingBroadcast] = useState<any>(null);
   const [selectedOrg, setSelectedOrg] = useState<any>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -113,9 +130,23 @@ const SuperAdminDashboard: React.FC = () => {
 
   // Filtered Data
   const filteredOrganisations = organisations.filter(org => 
-    org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    org.code.toLowerCase().includes(searchTerm.toLowerCase())
+    (org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    org.code.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    org.status !== 'DELETED'
   );
+
+  // Update selectedOrg when organisations list changes
+  useEffect(() => {
+    if (selectedOrg) {
+      const updated = organisations.find(o => o._id === selectedOrg._id);
+      if (updated) {
+        setSelectedOrg(updated);
+      } else if (updated === undefined && selectedOrg.status !== 'DELETED') {
+        // If it's gone from the list and wasn't already deleted, close the modal
+        setSelectedOrg(null);
+      }
+    }
+  }, [organisations]);
 
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -155,7 +186,7 @@ const SuperAdminDashboard: React.FC = () => {
 
       const headers = { 'Authorization': `Bearer ${token}` };
 
-      const [orgsRes, statsRes, usersRes, progsRes, broadcastsRes, logsRes, insightsRes, ticketsRes, settingsRes, healthRes, orgAppsRes] = await Promise.all([
+      const responses = await Promise.all([
         fetch('/api/admin/organisations', { headers }),
         fetch('/api/admin/stats', { headers }),
         fetch('/api/admin/users', { headers }),
@@ -169,11 +200,19 @@ const SuperAdminDashboard: React.FC = () => {
         fetch('/api/admin/org-applications', { headers })
       ]);
       
-      const results = await Promise.all([
-        orgsRes.json(), statsRes.json(), usersRes.json(), progsRes.json(), 
-        broadcastsRes.json(), logsRes.json(), insightsRes.json(), 
-        ticketsRes.json(), settingsRes.json(), healthRes.json(), orgAppsRes.json()
-      ]);
+      const results = await Promise.all(responses.map(async (res) => {
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`HTTP error! status: ${res.status}, body: ${text.substring(0, 100)}`);
+        }
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+          return res.json();
+        } else {
+          const text = await res.text();
+          throw new Error(`Expected JSON but got ${contentType}. Body: ${text.substring(0, 100)}`);
+        }
+      }));
 
       const [
         orgsData, statsData, usersData, progsData, broadcastsData, 
@@ -255,6 +294,68 @@ const SuperAdminDashboard: React.FC = () => {
     } catch (err) {
       showNotification('error', 'Failed to update application');
     }
+  };
+
+  const handleUpdateOrgStatus = async () => {
+    if (!orgToManage) return;
+    
+    try {
+      const response = await fetch(`/api/admin/organisations/${orgToManage._id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
+        },
+        body: JSON.stringify({
+          status: newStatus,
+          reason: statusReason,
+          suspensionEnd: newStatus === 'SUSPENDED' ? suspensionEnd : undefined
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        showNotification('success', `Organisation status updated to ${newStatus}`);
+        setShowOrgStatusModal(false);
+        setOrgToManage(null);
+        setStatusReason('');
+        setSuspensionEnd('');
+        fetchData();
+      } else {
+        showNotification('error', data.message || 'Failed to update status');
+      }
+    } catch (err) {
+      showNotification('error', 'Failed to update status');
+    }
+  };
+
+  const handleDeleteOrg = (id: string) => {
+    setShowConfirmModal({
+      show: true,
+      title: 'Delete Organisation',
+      message: 'Are you sure you want to permanently delete this organisation? This will disable all access for its members and hide it from the dashboard.',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/admin/organisations/${id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
+            }
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            showNotification('success', 'Organisation deleted successfully');
+            fetchData();
+          } else {
+            showNotification('error', data.message || 'Failed to delete organisation');
+          }
+        } catch (err) {
+          showNotification('error', 'Failed to delete organisation');
+        }
+        setShowConfirmModal(prev => ({ ...prev, show: false }));
+      }
+    });
   };
 
   const handleSeedData = async () => {
@@ -915,7 +1016,7 @@ const SuperAdminDashboard: React.FC = () => {
                   </div>
                 </div>
                 <div className="bg-white p-6 rounded-2xl border border-emerald-100 shadow-sm">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Admin Security Code</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2">Organisation Admin Invite Code</span>
                   <div className="flex items-center justify-between">
                     <span className="text-lg font-mono font-bold text-rose-600">{approvedOrgInfo.adminSecret}</span>
                     <button 
@@ -932,7 +1033,7 @@ const SuperAdminDashboard: React.FC = () => {
               </div>
               
               <div className="mt-8 p-4 bg-white/50 rounded-xl border border-emerald-100 text-xs text-emerald-800 font-medium leading-relaxed">
-                <strong>Next Steps:</strong> The hub admin should go to the <strong>Login</strong> page, select the <strong>Admin</strong> tab, and click <strong>"Signup"</strong>. They will need to enter their details, use the <strong>Organisation Code</strong> above, and provide the <strong>Admin Security Code</strong> to verify their authority.
+                <strong>Next Steps:</strong> The organisation admin should go to the <strong>Login</strong> page, select the <strong>Admin Signup</strong> tab. They will need to enter their details and provide the <strong>Organisation Admin Invite Code</strong> shown above to complete their registration.
               </div>
             </div>
           )}
@@ -1112,12 +1213,49 @@ const SuperAdminDashboard: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-8 py-5">
-                      <span className="px-3 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase rounded-lg">Operational</span>
+                      <div className="flex flex-col">
+                        <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-lg inline-block w-fit ${
+                          org.status === 'ACTIVE' || !org.status ? 'bg-emerald-50 text-emerald-600' :
+                          org.status === 'SUSPENDED' ? 'bg-amber-50 text-amber-600' :
+                          org.status === 'BANNED' ? 'bg-red-50 text-red-600' :
+                          'bg-slate-50 text-slate-600'
+                        }`}>
+                          {org.status || 'ACTIVE'}
+                        </span>
+                        {org.status === 'SUSPENDED' && org.suspensionEnd && (
+                          <span className="text-[9px] text-amber-500 font-bold mt-1">
+                            Until: {new Date(org.suspensionEnd).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
                     </td>
-                    <td className="px-8 py-5">
-                      <button className="p-2 text-slate-300 hover:text-slate-600 transition-colors">
-                        <MoreVertical className="w-5 h-5" />
-                      </button>
+                    <td className="px-8 py-5 text-right">
+                      <div className="flex items-center justify-end space-x-2">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOrgToManage(org);
+                            setNewStatus(org.status || 'ACTIVE');
+                            setStatusReason(org.statusReason || '');
+                            setSuspensionEnd(org.suspensionEnd ? new Date(org.suspensionEnd).toISOString().split('T')[0] : '');
+                            setShowOrgStatusModal(true);
+                          }}
+                          className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                          title="Manage Status"
+                        >
+                          <ShieldCheck className="w-5 h-5" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteOrg(org._id);
+                          }}
+                          className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                          title="Delete Organisation"
+                        >
+                          <XCircle className="w-5 h-5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1461,7 +1599,14 @@ const SuperAdminDashboard: React.FC = () => {
                   <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Programmes</p>
                 </div>
                 <div className="bg-slate-50 p-6 rounded-3xl text-center">
-                  <p className="text-2xl font-black text-slate-900">Active</p>
+                  <p className={`text-2xl font-black ${
+                    selectedOrg.status === 'ACTIVE' || !selectedOrg.status ? 'text-emerald-600' :
+                    selectedOrg.status === 'SUSPENDED' ? 'text-amber-600' :
+                    selectedOrg.status === 'BANNED' ? 'text-rose-600' :
+                    'text-slate-600'
+                  }`}>
+                    {selectedOrg.status || 'ACTIVE'}
+                  </p>
                   <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Status</p>
                 </div>
               </div>
@@ -1477,6 +1622,27 @@ const SuperAdminDashboard: React.FC = () => {
                     <span className="text-indigo-600 text-sm font-black">{selectedOrg.code}</span>
                   </div>
                 </div>
+              </div>
+              <div className="flex space-x-3">
+                <button 
+                  onClick={() => {
+                    setOrgToManage(selectedOrg);
+                    setNewStatus(selectedOrg.status || 'ACTIVE');
+                    setStatusReason(selectedOrg.statusReason || '');
+                    setSuspensionEnd(selectedOrg.suspensionEnd ? new Date(selectedOrg.suspensionEnd).toISOString().split('T')[0] : '');
+                    setShowOrgStatusModal(true);
+                  }}
+                  className="flex-1 py-4 bg-indigo-600 text-white text-sm font-black rounded-2xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all uppercase tracking-widest"
+                >
+                  Manage Status
+                </button>
+                <button 
+                  onClick={() => handleDeleteOrg(selectedOrg._id)}
+                  className="px-6 py-4 bg-rose-50 text-rose-600 text-sm font-black rounded-2xl hover:bg-rose-100 transition-all uppercase tracking-widest"
+                  title="Delete Organisation"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
               </div>
             </div>
           </div>
@@ -1816,6 +1982,84 @@ const SuperAdminDashboard: React.FC = () => {
               >
                 Close Ticket
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showOrgStatusModal && orgToManage && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-slate-900 p-10 text-white relative overflow-hidden">
+              <div className="relative z-10">
+                <h2 className="text-3xl font-black tracking-tight">Manage Hub Status</h2>
+                <p className="text-slate-400 text-sm mt-2 font-medium">Update access for {orgToManage.name}</p>
+              </div>
+              <ShieldCheck className="w-32 h-32 text-white/5 absolute -right-8 -bottom-8 rotate-12" />
+              <button 
+                onClick={() => setShowOrgStatusModal(false)}
+                className="absolute top-8 right-8 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-all text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-10 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">New Status</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['ACTIVE', 'SUSPENDED', 'BANNED', 'DELETED'].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => setNewStatus(status as any)}
+                      className={`py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border-2 ${
+                        newStatus === status 
+                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                          : 'bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100'
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {newStatus === 'SUSPENDED' && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Suspension End Date</label>
+                  <input 
+                    type="date" 
+                    value={suspensionEnd}
+                    onChange={(e) => setSuspensionEnd(e.target.value)}
+                    className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                  />
+                  <p className="text-[10px] text-slate-400 italic px-1">Leave blank for indefinite suspension.</p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Reason for Action</label>
+                <textarea 
+                  placeholder="Explain why this action is being taken..."
+                  value={statusReason}
+                  onChange={(e) => setStatusReason(e.target.value)}
+                  className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl text-sm font-medium text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 transition-all min-h-[100px] resize-none"
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button 
+                  onClick={() => setShowOrgStatusModal(false)}
+                  className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleUpdateOrgStatus}
+                  className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+                >
+                  Apply Status
+                </button>
+              </div>
             </div>
           </div>
         </div>

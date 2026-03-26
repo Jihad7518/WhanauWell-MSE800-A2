@@ -105,7 +105,7 @@ const PublicProgrammes: React.FC = () => {
                   </div>
                   <div className="flex items-center text-xs text-slate-500">
                     <MapPin className="w-4 h-4 mr-2 text-indigo-400" />
-                    {p.location || 'Waitaha Hub'}
+                    {p.location || 'Waitaha Community Centre'}
                   </div>
                 </div>
 

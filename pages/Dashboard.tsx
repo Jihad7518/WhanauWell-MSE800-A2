@@ -7,6 +7,7 @@ import {
   TrendingUp, 
   Activity, 
   BrainCircuit, 
+  ShieldCheck,
   ArrowRight,
   Plus,
   Clock,
@@ -36,6 +37,7 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
   const [stats, setStats] = useState<any>(null);
+  const displayOrganisationName = user.role === 'SUPER_ADMIN' ? 'WhānauWell Global' : (organisation?.name || 'WhānauWell Global');
   const [applications, setApplications] = useState<any[]>([]);
   const [myProgrammes, setMyProgrammes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,8 +84,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
         });
         const myProgsData = await myProgsRes.json();
         if (myProgsData.success) setMyProgrammes(myProgsData.data);
-      } catch (error) {
-        showNotification('Failed to fetch dashboard data', 'error');
+      } catch (error: any) {
+        console.error('Dashboard fetch error:', error);
+        showNotification(`Failed to fetch dashboard data: ${error.message || 'Unknown error'}`, 'error');
       } finally {
         setLoading(false);
       }
@@ -201,7 +204,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-slate-900">Kia ora, {user.name}!</h1>
-            <p className="text-slate-500">Welcome to your WhānauWell dashboard at <span className="font-bold text-indigo-600">{organisation?.name || 'WhānauWell Global'}</span>.</p>
+            <p className="text-slate-500">Welcome to your WhānauWell dashboard at <span className="font-bold text-indigo-600">{displayOrganisationName}</span>.</p>
           </div>
         </div>
         <div className="flex space-x-3">
@@ -232,7 +235,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className={`grid grid-cols-1 md:grid-cols-2 ${user.role === 'SUPER_ADMIN' ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-6`}>
+        {user.role === 'SUPER_ADMIN' && (
+          <StatCard 
+            title="Active Organisations" 
+            value={stats?.organisationsCount || 0} 
+            icon={ShieldCheck} 
+            color="bg-violet-600" 
+            to="/app/admin?tab=organisations"
+          />
+        )}
         <StatCard 
           title="Active Programmes" 
           value={stats?.programmesCount || 0} 
@@ -467,7 +479,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, organisation }) => {
               </div>
               <div className="space-y-1">
                 <p className="font-bold text-slate-900">No applications yet</p>
-                <p className="text-sm text-slate-500">When people apply to join your hub, they will appear here for review.</p>
+                <p className="text-sm text-slate-500">When people apply to join your organisation, they will appear here for review.</p>
               </div>
             </div>
           )}

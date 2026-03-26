@@ -18,6 +18,29 @@ import {
   Lock
 } from 'lucide-react';
 
+const ScreenshotPlaceholder: React.FC<{ title: string; description: string; role?: string }> = ({ title, description, role }) => (
+  <div className="bg-slate-100 rounded-3xl overflow-hidden border-4 border-slate-200 shadow-xl relative group aspect-video flex flex-col items-center justify-center p-8 text-center space-y-4">
+    <div className="w-16 h-16 bg-slate-200 rounded-2xl flex items-center justify-center text-slate-400">
+      <Camera className="w-8 h-8" />
+    </div>
+    <div className="space-y-2">
+      <h4 className="font-black text-slate-900 uppercase tracking-tight">{title}</h4>
+      <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">{description}</p>
+    </div>
+    {role && (
+      <div className="absolute top-4 right-4">
+        <span className="px-3 py-1 bg-indigo-600 text-white text-[10px] font-black rounded-full uppercase tracking-widest shadow-lg">
+          {role}
+        </span>
+      </div>
+    )}
+    <div className="absolute inset-0 border-2 border-dashed border-slate-300 rounded-[20px] m-4 pointer-events-none"></div>
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+      <p className="text-[10px] font-bold text-slate-400 italic">[ User: Replace with actual screenshot ]</p>
+    </div>
+  </div>
+);
+
 const UserManual: React.FC = () => {
   const sections = [
     { id: 'intro', title: 'Introduction', icon: BookOpen },
@@ -31,370 +54,345 @@ const UserManual: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Hero Section */}
-      <div className="bg-indigo-900 text-white py-24 px-6 relative overflow-hidden">
-        <div className="max-w-5xl mx-auto relative z-10">
-          <div className="inline-flex items-center space-x-2 px-4 py-2 bg-white/10 rounded-full text-indigo-200 text-xs font-bold uppercase tracking-widest mb-6">
+      <div className="bg-slate-900 text-white py-32 px-6 relative overflow-hidden">
+        <div className="max-w-5xl mx-auto relative z-10 text-center space-y-8">
+          <div className="inline-flex items-center space-x-2 px-4 py-2 bg-white/10 rounded-full text-indigo-300 text-xs font-bold uppercase tracking-widest mb-6">
             <BookOpen className="w-4 h-4" />
-            <span>Official Documentation</span>
+            <span>Official Documentation v1.0</span>
           </div>
-          <h1 className="text-5xl md:text-6xl font-black tracking-tight mb-6">
+          <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-6 leading-none">
             WhānauWell <br />
-            <span className="text-indigo-400">User Manual</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-emerald-400">User Manual</span>
           </h1>
-          <p className="text-xl text-indigo-100 max-w-2xl leading-relaxed">
-            Everything you need to know about using, managing, and scaling the WhānauWell platform. 
-            From daily check-ins to global platform administration.
+          <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed font-medium">
+            A comprehensive guide for members, coordinators, and administrators to navigate the WhānauWell ecosystem.
           </p>
         </div>
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full -mr-20 -mt-20 blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full -ml-10 -mb-10 blur-2xl"></div>
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full -mr-40 -mt-40 blur-[100px]"></div>
+        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-emerald-500/10 rounded-full -ml-20 -mb-20 blur-[80px]"></div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-4 gap-12">
+      <div className="max-w-7xl mx-auto px-6 py-20 grid grid-cols-1 lg:grid-cols-4 gap-16">
         {/* Sidebar Navigation */}
         <div className="lg:col-span-1">
-          <div className="sticky top-8 space-y-2">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 px-4">Contents</p>
+          <div className="sticky top-24 space-y-2">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 px-4">Documentation Index</p>
             {sections.map((section) => (
               <a 
                 key={section.id}
                 href={`#${section.id}`}
-                className="flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-600 hover:bg-white hover:text-indigo-600 hover:shadow-sm transition-all group"
+                className="flex items-center space-x-4 px-6 py-4 rounded-2xl text-slate-500 hover:bg-white hover:text-indigo-600 hover:shadow-xl hover:shadow-indigo-100/50 transition-all group border border-transparent hover:border-slate-100"
               >
-                <section.icon className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                <span className="text-sm font-bold">{section.title}</span>
+                <section.icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                <span className="text-sm font-black uppercase tracking-tight">{section.title}</span>
               </a>
             ))}
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="lg:col-span-3 space-y-24 pb-32">
+        <div className="lg:col-span-3 space-y-32 pb-32">
           {/* Introduction */}
-          <section id="intro" className="scroll-mt-24 space-y-8">
-            <div className="space-y-4">
-              <h2 className="text-4xl font-black text-slate-900">Introduction</h2>
-              <p className="text-lg text-slate-600 leading-relaxed">
-                WhānauWell is a holistic wellbeing platform designed to empower community organisations (Hubs) 
+          <section id="intro" className="scroll-mt-32 space-y-12">
+            <div className="space-y-6">
+              <h2 className="text-5xl font-black text-slate-900 tracking-tight">Introduction</h2>
+              <div className="h-2 w-24 bg-indigo-600 rounded-full"></div>
+              <p className="text-xl text-slate-600 leading-relaxed font-medium">
+                WhānauWell is a holistic wellbeing platform designed to empower community organisations 
                 with ethical data tools. It bridges the gap between community service delivery and real-time 
                 wellbeing insights, ensuring that every whānau receives the support they need.
               </p>
             </div>
             
-            <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
-              <h3 className="text-xl font-bold text-slate-900 mb-4">Platform Architecture</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="p-6 bg-slate-50 rounded-2xl">
-                  <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center mb-4 text-indigo-600">
-                    <User className="w-5 h-5" />
+            <div className="bg-white p-12 rounded-[48px] border border-slate-100 shadow-2xl shadow-slate-200/50">
+              <h3 className="text-2xl font-black text-slate-900 mb-8 uppercase tracking-tight">Platform Roles</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="p-8 bg-slate-50 rounded-3xl border border-slate-100">
+                  <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center mb-6 text-white shadow-lg shadow-indigo-200">
+                    <User className="w-6 h-6" />
                   </div>
-                  <h4 className="font-bold text-slate-900 mb-2">Whānau Members</h4>
-                  <p className="text-xs text-slate-500">The heart of the platform. Users who participate in programmes and track their wellbeing.</p>
+                  <h4 className="font-black text-slate-900 mb-3 uppercase tracking-tight">Whānau Members</h4>
+                  <p className="text-sm text-slate-500 leading-relaxed">The heart of the platform. Users who participate in programmes and track their wellbeing.</p>
                 </div>
-                <div className="p-6 bg-slate-50 rounded-2xl">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center mb-4 text-emerald-600">
-                    <Building2 className="w-5 h-5" />
+                <div className="p-8 bg-slate-50 rounded-3xl border border-slate-100">
+                  <div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center mb-6 text-white shadow-lg shadow-emerald-200">
+                    <Building2 className="w-6 h-6" />
                   </div>
-                  <h4 className="font-bold text-slate-900 mb-2">Hub Admins</h4>
-                  <p className="text-xs text-slate-500">Organisation leaders who manage local programmes, members, and community insights.</p>
+                  <h4 className="font-black text-slate-900 mb-3 uppercase tracking-tight">Org Admins</h4>
+                  <p className="text-sm text-slate-500 leading-relaxed">Organisation leaders who manage local programmes, members, and community insights.</p>
                 </div>
-                <div className="p-6 bg-slate-50 rounded-2xl">
-                  <div className="w-10 h-10 bg-rose-100 rounded-xl flex items-center justify-center mb-4 text-rose-600">
-                    <ShieldCheck className="w-5 h-5" />
+                <div className="p-8 bg-slate-50 rounded-3xl border border-slate-100">
+                  <div className="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center mb-6 text-white shadow-lg shadow-rose-200">
+                    <ShieldCheck className="w-6 h-6" />
                   </div>
-                  <h4 className="font-bold text-slate-900 mb-2">Super Admins</h4>
-                  <p className="text-xs text-slate-500">Platform owners who manage Hub onboarding, global settings, and system health.</p>
+                  <h4 className="font-black text-slate-900 mb-3 uppercase tracking-tight">Super Admins</h4>
+                  <p className="text-sm text-slate-500 leading-relaxed">Platform owners who manage organisation onboarding, global settings, and system health.</p>
                 </div>
               </div>
             </div>
           </section>
 
           {/* Getting Started */}
-          <section id="getting-started" className="scroll-mt-24 space-y-12">
-            <div className="space-y-4">
-              <h2 className="text-4xl font-black text-slate-900">Getting Started</h2>
-              <p className="text-lg text-slate-600 leading-relaxed">
-                Whether you are a new member or a potential Hub partner, joining WhānauWell is simple.
+          <section id="getting-started" className="scroll-mt-32 space-y-16">
+            <div className="space-y-6">
+              <h2 className="text-5xl font-black text-slate-900 tracking-tight">Getting Started</h2>
+              <div className="h-2 w-24 bg-emerald-600 rounded-full"></div>
+              <p className="text-xl text-slate-600 leading-relaxed font-medium">
+                Whether you are a new member or a potential partner organisation, joining WhānauWell is simple.
               </p>
             </div>
 
-            <div className="space-y-12">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                <div className="space-y-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm">1</div>
-                    <h3 className="text-2xl font-bold text-slate-900">Join a Hub</h3>
+            <div className="space-y-24">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+                <div className="space-y-8">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-xl">1</div>
+                    <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Join an Organisation</h3>
                   </div>
-                  <p className="text-slate-600 leading-relaxed">
-                    To join WhānauWell, you must first apply to a local Hub. Browse the "Organisations" page to find a Hub in your area.
+                  <p className="text-lg text-slate-600 leading-relaxed">
+                    To join WhānauWell, you must first apply to a local organisation. Browse the "Organisations" page to find a provider in your area.
                   </p>
-                  <ul className="space-y-3 text-sm text-slate-500">
-                    <li className="flex items-center"><ArrowRight className="w-4 h-4 mr-2 text-indigo-500" /> Visit the Hub profile page</li>
-                    <li className="flex items-center"><ArrowRight className="w-4 h-4 mr-2 text-indigo-500" /> Click "Apply to Join"</li>
-                    <li className="flex items-center"><ArrowRight className="w-4 h-4 mr-2 text-indigo-500" /> Fill in your details and reason for joining</li>
-                  </ul>
-                </div>
-                <div className="bg-white rounded-3xl overflow-hidden border-4 border-slate-200 shadow-2xl relative group">
-                  <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 flex items-center space-x-2">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 rounded-full bg-rose-400"></div>
-                      <div className="w-2 h-2 rounded-full bg-amber-400"></div>
-                      <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                    </div>
-                    <div className="bg-white rounded-md px-2 py-0.5 text-[8px] text-slate-400 flex-1 truncate">whanauwell.org/organisations/waitaha-health</div>
+                  <div className="space-y-4">
+                    {[
+                      'Visit the Organisation profile page',
+                      'Click "Apply to Join"',
+                      'Fill in your details and reason for joining'
+                    ].map((step, i) => (
+                      <div key={i} className="flex items-center space-x-3 text-slate-500 font-bold">
+                        <ArrowRight className="w-5 h-5 text-indigo-600" />
+                        <span>{step}</span>
+                      </div>
+                    ))}
                   </div>
-                  <img 
-                    src="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80" 
-                    alt="Hub Application Preview" 
-                    className="w-full aspect-video object-cover transition-all group-hover:scale-105"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-indigo-600/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-                  <p className="absolute bottom-4 left-4 text-[10px] font-black text-white bg-indigo-600 px-2 py-1 rounded shadow-lg uppercase tracking-widest">Preview: Hub Application Page</p>
                 </div>
+                <ScreenshotPlaceholder 
+                  title="Organisation Profile Page" 
+                  description="Screenshot of the public organisation profile page showing the 'Apply to Join' button."
+                />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                <div className="bg-white rounded-3xl overflow-hidden border-4 border-slate-200 shadow-2xl relative group md:order-last">
-                  <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 flex items-center space-x-2">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 rounded-full bg-rose-400"></div>
-                      <div className="w-2 h-2 rounded-full bg-amber-400"></div>
-                      <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                    </div>
-                    <div className="bg-white rounded-md px-2 py-0.5 text-[8px] text-slate-400 flex-1 truncate">whanauwell.org/auth/register</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+                <div className="md:order-last space-y-8">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-xl">2</div>
+                    <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Register with Invite Code</h3>
                   </div>
-                  <img 
-                    src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80" 
-                    alt="Registration Preview" 
-                    className="w-full aspect-video object-cover transition-all group-hover:scale-105"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-indigo-600/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-                  <p className="absolute bottom-4 left-4 text-[10px] font-black text-white bg-indigo-600 px-2 py-1 rounded shadow-lg uppercase tracking-widest">Preview: Registration Page</p>
-                </div>
-                <div className="space-y-6">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm">2</div>
-                    <h3 className="text-2xl font-bold text-slate-900">Register with Invite Code</h3>
-                  </div>
-                  <p className="text-slate-600 leading-relaxed">
+                  <p className="text-lg text-slate-600 leading-relaxed">
                     Once your application is approved, you will receive an **Invite Code** via email. 
                     Use this code on the registration page to create your account.
                   </p>
-                  <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl text-xs text-amber-700 font-medium">
-                    Note: The Invite Code ensures you are connected to the correct Hub and that your data is managed by the right team.
+                  <div className="p-6 bg-amber-50 border-l-4 border-amber-400 rounded-r-2xl text-sm text-amber-800 font-bold">
+                    The Invite Code ensures you are connected to the correct organisation and that your data is managed by the right team.
                   </div>
                 </div>
+                <ScreenshotPlaceholder 
+                  title="Registration Page" 
+                  description="Screenshot of the registration form where users enter their details and the invite code."
+                />
               </div>
             </div>
           </section>
 
           {/* Member Guide */}
-          <section id="member" className="scroll-mt-24 space-y-12">
-            <div className="space-y-4">
-              <h2 className="text-4xl font-black text-slate-900">Whānau Member Guide</h2>
-              <p className="text-lg text-slate-600 leading-relaxed">
+          <section id="member" className="scroll-mt-32 space-y-16">
+            <div className="space-y-6">
+              <h2 className="text-5xl font-black text-slate-900 tracking-tight">Whānau Member Guide</h2>
+              <div className="h-2 w-24 bg-rose-600 rounded-full"></div>
+              <p className="text-xl text-slate-600 leading-relaxed font-medium">
                 As a member, your dashboard is your personal wellbeing hub.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
-                <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-600">
-                  <Activity className="w-6 h-6" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+              <div className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-xl space-y-8">
+                <div className="w-16 h-16 bg-rose-50 rounded-3xl flex items-center justify-center text-rose-600 shadow-inner">
+                  <Activity className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900">Daily Stress Checks</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">
-                  Complete a quick 10-question assessment daily to track your stress levels. 
-                  This helps your Hub coordinators understand when you might need extra support.
-                </p>
-                <div className="bg-white rounded-2xl overflow-hidden border-2 border-slate-100 shadow-lg relative group">
-                  <img 
-                    src="https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=600&q=80" 
-                    alt="Stress Check Preview" 
-                    className="w-full aspect-video object-cover transition-all group-hover:scale-105"
-                    referrerPolicy="no-referrer"
-                  />
-                  <p className="absolute bottom-2 left-2 text-[8px] font-black text-white bg-rose-600 px-1.5 py-0.5 rounded shadow-lg uppercase tracking-widest">Preview: Stress Check Page</p>
+                <div className="space-y-4">
+                  <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Daily Stress Checks</h3>
+                  <p className="text-slate-500 leading-relaxed font-medium">
+                    Complete a quick 10-question assessment daily to track your stress levels. 
+                    This helps your coordinators understand when you might need extra support.
+                  </p>
                 </div>
+                <ScreenshotPlaceholder 
+                  title="Stress Check Interface" 
+                  description="Screenshot of the stress check questionnaire showing the slider or scale inputs."
+                  role="Member"
+                />
               </div>
 
-              <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
-                <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
-                  <Calendar className="w-6 h-6" />
+              <div className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-xl space-y-8">
+                <div className="w-16 h-16 bg-indigo-50 rounded-3xl flex items-center justify-center text-indigo-600 shadow-inner">
+                  <Calendar className="w-8 h-8" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900">Browse Programmes</h3>
-                <p className="text-sm text-slate-500 leading-relaxed">
-                  Discover community events, workshops, and health programmes. 
-                  You can enroll directly from the platform and see your upcoming schedule.
-                </p>
-                <div className="bg-white rounded-2xl overflow-hidden border-2 border-slate-100 shadow-lg relative group">
-                  <img 
-                    src="https://images.unsplash.com/photo-1504868584819-f8e905263543?auto=format&fit=crop&w=600&q=80" 
-                    alt="Programmes List Preview" 
-                    className="w-full aspect-video object-cover transition-all group-hover:scale-105"
-                    referrerPolicy="no-referrer"
-                  />
-                  <p className="absolute bottom-2 left-2 text-[8px] font-black text-white bg-indigo-600 px-1.5 py-0.5 rounded shadow-lg uppercase tracking-widest">Preview: Programmes List</p>
+                <div className="space-y-4">
+                  <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Browse Programmes</h3>
+                  <p className="text-slate-500 leading-relaxed font-medium">
+                    Discover community events, workshops, and health programmes. 
+                    You can enroll directly from the platform and see your upcoming schedule.
+                  </p>
                 </div>
+                <ScreenshotPlaceholder 
+                  title="Programmes Browser" 
+                  description="Screenshot of the 'Browse Programmes' page showing the list of available community activities."
+                  role="Member"
+                />
               </div>
             </div>
           </section>
 
           {/* Org Admin Guide */}
-          <section id="org-admin" className="scroll-mt-24 space-y-12">
-            <div className="space-y-4">
-              <h2 className="text-4xl font-black text-slate-900">Organisation Admin Guide</h2>
-              <p className="text-lg text-slate-600 leading-relaxed">
-                Hub Admins manage the local community and coordinate wellbeing efforts.
+          <section id="org-admin" className="scroll-mt-32 space-y-16">
+            <div className="space-y-6">
+              <h2 className="text-5xl font-black text-slate-900 tracking-tight">Organisation Admin Guide</h2>
+              <div className="h-2 w-24 bg-indigo-600 rounded-full"></div>
+              <p className="text-xl text-slate-600 leading-relaxed font-medium">
+                Organisation Admins manage the local community and coordinate wellbeing efforts.
               </p>
             </div>
 
-            <div className="space-y-8">
-              <div className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-sm">
-                <h3 className="text-2xl font-bold text-slate-900 mb-8 flex items-center">
-                  <LayoutDashboard className="w-6 h-6 mr-3 text-indigo-600" />
-                  Admin Dashboard Overview
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                  <div className="space-y-6">
+            <div className="space-y-12">
+              <div className="bg-white p-12 rounded-[48px] border border-slate-100 shadow-2xl shadow-indigo-100/50 space-y-12">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-16 h-16 bg-indigo-600 text-white rounded-3xl flex items-center justify-center shadow-xl">
+                      <LayoutDashboard className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Admin Dashboard</h3>
+                  </div>
+                  <div className="flex space-x-2">
+                    <span className="px-4 py-2 bg-slate-100 rounded-xl text-xs font-black text-slate-500 uppercase tracking-widest">Applications</span>
+                    <span className="px-4 py-2 bg-slate-100 rounded-xl text-xs font-black text-slate-500 uppercase tracking-widest">Members</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
+                  <div className="space-y-8">
                     <div className="space-y-4">
-                      <h4 className="font-bold text-slate-900 flex items-center">
-                        <Mail className="w-4 h-4 mr-2 text-indigo-500" />
+                      <h4 className="text-xl font-black text-slate-900 flex items-center uppercase tracking-tight">
+                        <Mail className="w-5 h-5 mr-3 text-indigo-600" />
                         Managing Applications
                       </h4>
-                      <p className="text-sm text-slate-500">
+                      <p className="text-slate-500 leading-relaxed font-medium">
                         Review new member requests. You can **Approve** (which generates an invite code) or **Reject** with a reason.
                       </p>
                     </div>
                     <div className="space-y-4">
-                      <h4 className="font-bold text-slate-900 flex items-center">
-                        <Users className="w-4 h-4 mr-2 text-indigo-500" />
+                      <h4 className="text-xl font-black text-slate-900 flex items-center uppercase tracking-tight">
+                        <Users className="w-5 h-5 mr-3 text-indigo-600" />
                         Member Management
                       </h4>
-                      <p className="text-sm text-slate-500">
+                      <p className="text-slate-500 leading-relaxed font-medium">
                         View your entire community list, update member roles (Member, Coordinator, Admin), or remove users if necessary.
                       </p>
                     </div>
                   </div>
-                  <div className="bg-white rounded-3xl overflow-hidden border-4 border-slate-200 shadow-2xl relative group">
-                    <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 flex items-center space-x-2">
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 rounded-full bg-rose-400"></div>
-                        <div className="w-2 h-2 rounded-full bg-amber-400"></div>
-                        <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                      </div>
-                      <div className="bg-white rounded-md px-2 py-0.5 text-[8px] text-slate-400 flex-1 truncate">whanauwell.org/app/dashboard</div>
-                    </div>
-                    <img 
-                      src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80" 
-                      alt="Admin Dashboard Preview" 
-                      className="w-full aspect-square object-cover transition-all group-hover:scale-105"
-                      referrerPolicy="no-referrer"
-                    />
-                    <p className="absolute bottom-4 left-4 text-[10px] font-black text-white bg-indigo-600 px-2 py-1 rounded shadow-lg uppercase tracking-widest">Preview: Admin Dashboard</p>
-                  </div>
+                  <ScreenshotPlaceholder 
+                    title="Admin Dashboard View" 
+                    description="Screenshot of the Org Admin dashboard showing the applications queue and member stats."
+                    role="Org Admin"
+                  />
                 </div>
               </div>
 
-              <div className="bg-white p-10 rounded-[40px] border border-slate-100 shadow-sm">
-                <h3 className="text-2xl font-bold text-slate-900 mb-8 flex items-center">
-                  <Settings className="w-6 h-6 mr-3 text-indigo-600" />
-                  Hub Customisation
-                </h3>
-                <p className="text-slate-600 mb-6">
-                  Navigate to **Organisation Profile** to manage how your Hub appears to the public. 
-                  You can update your mission, history, and add **Impact Stories** to showcase your work.
-                </p>
-                <div className="bg-white rounded-3xl overflow-hidden border-4 border-slate-200 shadow-2xl relative group h-64">
-                  <img 
-                    src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80" 
-                    alt="Org Profile Preview" 
-                    className="w-full h-full object-cover transition-all group-hover:scale-105"
-                    referrerPolicy="no-referrer"
-                  />
-                  <p className="absolute bottom-4 left-4 text-[10px] font-black text-white bg-indigo-600 px-2 py-1 rounded shadow-lg uppercase tracking-widest">Preview: Org Profile Settings</p>
+              <div className="bg-white p-12 rounded-[48px] border border-slate-100 shadow-2xl shadow-emerald-100/50 grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+                <div className="space-y-8">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-16 h-16 bg-emerald-600 text-white rounded-3xl flex items-center justify-center shadow-xl">
+                      <Settings className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Profile Customisation</h3>
+                  </div>
+                  <p className="text-lg text-slate-600 leading-relaxed font-medium">
+                    Navigate to **Organisation Profile** to manage how your organisation appears to the public. 
+                    Update your mission, history, and add **Impact Stories** to showcase your work.
+                  </p>
                 </div>
+                <ScreenshotPlaceholder 
+                  title="Organisation Profile Editor" 
+                  description="Screenshot of the profile editing interface where admins update their public information."
+                  role="Org Admin"
+                />
               </div>
             </div>
           </section>
 
           {/* Super Admin Guide */}
-          <section id="super-admin" className="scroll-mt-24 space-y-12">
-            <div className="space-y-4">
-              <h2 className="text-4xl font-black text-slate-900">Super Admin Guide</h2>
-              <p className="text-lg text-slate-600 leading-relaxed">
+          <section id="super-admin" className="scroll-mt-32 space-y-16">
+            <div className="space-y-6">
+              <h2 className="text-5xl font-black text-slate-900 tracking-tight">Super Admin Guide</h2>
+              <div className="h-2 w-24 bg-slate-900 rounded-full"></div>
+              <p className="text-xl text-slate-600 leading-relaxed font-medium">
                 Super Admins oversee the entire WhānauWell ecosystem.
               </p>
             </div>
 
-            <div className="bg-slate-900 text-white p-12 rounded-[48px] space-y-12">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                <div className="space-y-6">
-                  <h3 className="text-2xl font-bold">Platform Onboarding</h3>
-                  <p className="text-slate-400 leading-relaxed">
-                    Use the **Onboard Hub** feature to bring new organisations onto the platform. 
-                    This creates a unique database partition and generates the initial admin credentials for the Hub.
-                  </p>
+            <div className="bg-slate-900 text-white p-16 rounded-[64px] space-y-16 shadow-2xl shadow-slate-900/40">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-20 items-center">
+                <div className="space-y-10">
                   <div className="space-y-4">
-                    <div className="flex items-start space-x-3">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-1" />
-                      <div>
-                        <p className="font-bold">Global Insights</p>
-                        <p className="text-xs text-slate-500">Monitor aggregated wellbeing trends across all Hubs.</p>
+                    <h3 className="text-4xl font-black uppercase tracking-tighter">Platform Onboarding</h3>
+                    <p className="text-slate-400 text-lg leading-relaxed font-medium">
+                      Use the **Onboard Organisation** feature to bring new partners onto the platform. 
+                      This creates a unique database partition and generates initial credentials.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 gap-6">
+                    {[
+                      { title: 'Global Insights', desc: 'Monitor aggregated wellbeing trends across all organisations.' },
+                      { title: 'System Health', desc: 'Track CPU, Memory, and Database performance in real-time.' }
+                    ].map((item, i) => (
+                      <div key={i} className="flex items-start space-x-4 bg-white/5 p-6 rounded-3xl border border-white/10">
+                        <CheckCircle2 className="w-6 h-6 text-emerald-400 mt-1" />
+                        <div>
+                          <p className="font-black uppercase tracking-tight text-white">{item.title}</p>
+                          <p className="text-sm text-slate-500">{item.desc}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-1" />
-                      <div>
-                        <p className="font-bold">System Health</p>
-                        <p className="text-xs text-slate-500">Track CPU, Memory, and Database performance in real-time.</p>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
-                <div className="bg-white/5 rounded-3xl overflow-hidden border border-white/10 relative group shadow-2xl">
-                  <img 
-                    src="https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=1000&q=80" 
-                    alt="Super Admin Preview" 
-                    className="w-full aspect-video object-cover transition-all group-hover:scale-105"
-                    referrerPolicy="no-referrer"
-                  />
-                  <p className="absolute bottom-4 left-4 text-[10px] font-black text-white bg-rose-600 px-2 py-1 rounded shadow-lg uppercase tracking-widest">Preview: Super Admin Dashboard</p>
-                </div>
+                <ScreenshotPlaceholder 
+                  title="Super Admin Control Panel" 
+                  description="Screenshot of the global administration dashboard showing system metrics and organisation requests."
+                  role="Super Admin"
+                />
               </div>
             </div>
           </section>
 
           {/* FAQ */}
-          <section id="faq" className="scroll-mt-24 space-y-12">
-            <div className="space-y-4">
-              <h2 className="text-4xl font-black text-slate-900">FAQ & Support</h2>
-              <p className="text-lg text-slate-600 leading-relaxed">
-                Common questions and troubleshooting tips.
-              </p>
+          <section id="faq" className="scroll-mt-32 space-y-16">
+            <div className="space-y-6">
+              <h2 className="text-5xl font-black text-slate-900 tracking-tight">FAQ & Support</h2>
+              <div className="h-2 w-24 bg-indigo-600 rounded-full"></div>
             </div>
 
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
-                { q: "I haven't received my invite code. What should I do?", a: "Check your spam folder first. If it's not there, contact your Hub admin directly or use the contact form on our website." },
-                { q: "Can I join multiple Hubs?", a: "Currently, each account is linked to a single Hub to ensure data integrity and local coordination." },
-                { q: "Is my data shared with other organisations?", a: "No. Your data is only visible to the coordinators and admins of the Hub you joined. Super Admins only see aggregated, anonymous trends." },
+                { q: "I haven't received my invite code. What should I do?", a: "Check your spam folder first. If it's not there, contact your organisation admin directly or use the contact form on our website." },
+                { q: "Can I join multiple organisations?", a: "Currently, each account is linked to a single organisation to ensure data integrity and local coordination." },
+                { q: "Is my data shared with other organisations?", a: "No. Your data is only visible to the coordinators and admins of the organisation you joined. Super Admins only see aggregated, anonymous trends." },
                 { q: "How do I reset my password?", a: "Go to the login page and click 'Forgot Password' to receive a reset link via email." },
               ].map((item, i) => (
-                <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-2">
-                  <h4 className="font-bold text-slate-900">{item.q}</h4>
-                  <p className="text-sm text-slate-500 leading-relaxed">{item.a}</p>
+                <div key={i} className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-xl transition-all space-y-4">
+                  <h4 className="text-lg font-black text-slate-900 uppercase tracking-tight leading-tight">{item.q}</h4>
+                  <p className="text-slate-500 leading-relaxed font-medium">{item.a}</p>
                 </div>
               ))}
             </div>
 
-            <div className="bg-indigo-50 p-8 rounded-3xl border border-indigo-100 text-center space-y-4">
-              <h3 className="text-xl font-bold text-indigo-900">Still need help?</h3>
-              <p className="text-indigo-700 text-sm">Our support team is available Mon-Fri, 9am - 5pm.</p>
-              <button className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all">
-                Contact Support
+            <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 p-16 rounded-[64px] text-center space-y-8 shadow-2xl shadow-indigo-200">
+              <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto backdrop-blur-md">
+                <HelpCircle className="w-10 h-10 text-white" />
+              </div>
+              <div className="space-y-4">
+                <h3 className="text-4xl font-black text-white uppercase tracking-tighter">Still need help?</h3>
+                <p className="text-indigo-100 text-lg font-medium max-w-md mx-auto">Our support team is available Mon-Fri, 9am - 5pm to assist with any technical issues.</p>
+              </div>
+              <button className="bg-white text-indigo-600 px-12 py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-indigo-50 transition-all shadow-xl">
+                Contact Support Team
               </button>
             </div>
           </section>

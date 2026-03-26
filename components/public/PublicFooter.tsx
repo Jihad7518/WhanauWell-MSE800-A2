@@ -42,7 +42,7 @@ const PublicFooter: React.FC = () => {
           <h4 className="font-bold text-slate-900 mb-6">Contact</h4>
           <ul className="space-y-4 text-sm text-slate-500">
             <li className="flex items-center"><Mail className="w-4 h-4 mr-2" /> support@whanauwell.org</li>
-            <li className="flex items-center"><MapPin className="w-4 h-4 mr-2" /> Waitaha Community Hub</li>
+            <li className="flex items-center"><MapPin className="w-4 h-4 mr-2" /> Waitaha Community Centre</li>
             <li className="flex items-center"><Phone className="w-4 h-4 mr-2" /> 0800-WHANAU</li>
           </ul>
         </div>

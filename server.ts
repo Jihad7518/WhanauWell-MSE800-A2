@@ -38,16 +38,22 @@ async function startServer() {
     try {
       // Refresh masterOrg and superAdminId if needed
       masterOrg = await Organisation.findOne({ code: 'MASTER' });
+      const masterOrgData = { 
+        name: 'WhānauWell Global', 
+        code: 'MASTER',
+        description: 'WhānauWell Global is the central hub for the WhānauWell platform, providing oversight and support for all community hubs.',
+        mission: 'To provide the digital infrastructure for community wellbeing across the globe.',
+        history: 'WhānauWell was born out of a need for ethical, culturally appropriate wellbeing tools for indigenous and local communities.',
+        trackRecord: 'Powering over 50 community hubs and supporting 10,000+ whānau members.',
+        foundedAt: new Date('2023-01-01')
+      };
+
       if (!masterOrg) {
-        masterOrg = await Organisation.create({ 
-          name: 'WhānauWell Global', 
-          code: 'MASTER',
-          description: 'WhānauWell Global is the central hub for the WhānauWell platform, providing oversight and support for all community hubs.',
-          mission: 'To provide the digital infrastructure for community wellbeing across the globe.',
-          history: 'WhānauWell was born out of a need for ethical, culturally appropriate wellbeing tools for indigenous and local communities.',
-          trackRecord: 'Powering over 50 community hubs and supporting 10,000+ whānau members.',
-          foundedAt: new Date('2023-01-01')
-        });
+        masterOrg = await Organisation.create(masterOrgData);
+      } else {
+        // Always ensure the name and other details are correct for the master org
+        await Organisation.updateOne({ _id: masterOrg._id }, { $set: masterOrgData });
+        masterOrg = await Organisation.findById(masterOrg._id);
       }
 
       let superAdmin = await User.findOne({ email: 'admin@whanauwell.org' });
@@ -619,39 +625,48 @@ async function startServer() {
 
       let createdOrg = null;
       if (status === 'APPROVED') {
-        // Check if organisation already exists
-        createdOrg = await Organisation.findOne({ name: application.name });
+        // Check if organisation already exists (excluding deleted ones)
+        createdOrg = await Organisation.findOne({ name: application.name, status: { $ne: 'DELETED' } });
         
+        const generateAdminCode = () => 'ADM-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+
         if (!createdOrg) {
           // Create the organisation if it doesn't exist
           const orgCode = application.name.toUpperCase().replace(/\s+/g, '-').substring(0, 10) + '-' + Math.floor(1000 + Math.random() * 9000);
+          const adminInviteCode = generateAdminCode();
           
           createdOrg = await Organisation.create({
             name: application.name,
-            code: orgCode
+            code: orgCode,
+            adminInviteCode: adminInviteCode
           });
 
           await logEvent('ORG_CREATED', `Organisation ${application.name} created from approved application`, 'SUCCESS', createdOrg._id, req.user.id);
+        } else if (!createdOrg.adminInviteCode) {
+          // Ensure existing org has an admin invite code
+          createdOrg.adminInviteCode = generateAdminCode();
+          await createdOrg.save();
+          await logEvent('ORG_UPDATED', `Organisation ${application.name} assigned new admin invite code on approval`, 'INFO', createdOrg._id, req.user.id);
+        }
 
-          // Create an ORG_ADMIN user for the applicant
-          const existingUser = await User.findOne({ email: application.email });
-          if (!existingUser) {
-            const passwordHash = await bcrypt.hash('WhanauWell2026!', 10);
-            await User.create({
-              name: application.contactName,
-              email: application.email,
-              passwordHash,
-              role: 'ORG_ADMIN',
-              organisationId: createdOrg._id
-            });
-            console.log(`Created ORG_ADMIN user for ${application.email}`);
-          } else {
-            // Update existing user to ORG_ADMIN for this new org
-            existingUser.role = 'ORG_ADMIN';
-            existingUser.organisationId = createdOrg._id;
-            await existingUser.save();
-            console.log(`Updated existing user ${application.email} to ORG_ADMIN for ${createdOrg.name}`);
-          }
+        // Handle user creation/update
+        const existingUser = await User.findOne({ email: application.email });
+        if (!existingUser) {
+          const passwordHash = await bcrypt.hash('WhanauWell2026!', 10);
+          await User.create({
+            name: application.contactName,
+            email: application.email,
+            passwordHash,
+            role: 'ORG_ADMIN',
+            organisationId: createdOrg._id
+          });
+          console.log(`Created ORG_ADMIN user for ${application.email}`);
+        } else {
+          // Update existing user to ORG_ADMIN for this new org
+          existingUser.role = 'ORG_ADMIN';
+          existingUser.organisationId = createdOrg._id;
+          await existingUser.save();
+          console.log(`Updated existing user ${application.email} to ORG_ADMIN for ${createdOrg.name}`);
         }
       }
 
@@ -661,7 +676,7 @@ async function startServer() {
         success: true, 
         data: application, 
         organisation: createdOrg,
-        adminSecret: process.env.ADMIN_SECRET_CODE || 'WhanauAdmin2024'
+        adminSecret: createdOrg?.adminInviteCode || process.env.ADMIN_SECRET_CODE || 'WhanauAdmin2024'
       });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
@@ -670,7 +685,7 @@ async function startServer() {
 
   app.get("/api/admin/organisations", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req, res) => {
     try {
-      const organisations = await Organisation.find();
+      const organisations = await Organisation.find({ status: { $ne: 'DELETED' } });
       const orgsWithStats = await Promise.all(organisations.map(async (org) => {
         const userCount = await User.countDocuments({ organisationId: org._id });
         const programmeCount = await Programme.countDocuments({ organisationId: org._id });
@@ -681,6 +696,85 @@ async function startServer() {
         };
       }));
       res.json({ success: true, data: orgsWithStats });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.patch("/api/admin/organisations/:id/status", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req: any, res) => {
+    try {
+      const { status, reason, suspensionEnd } = req.body;
+      const validStatuses = ['ACTIVE', 'SUSPENDED', 'BANNED', 'DELETED'];
+      
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ success: false, message: 'Invalid status' });
+      }
+
+      const updateData: any = { 
+        status, 
+        statusReason: reason 
+      };
+
+      if (status === 'DELETED') {
+        const org = await Organisation.findById(req.params.id);
+        if (org) {
+          if (!org.code.includes('-deleted-')) {
+            updateData.code = `${org.code}-deleted-${Date.now()}`;
+          }
+          if (!org.name.includes('(Deleted)')) {
+            updateData.name = `${org.name} (Deleted)`;
+          }
+          if (org.adminInviteCode && !org.adminInviteCode.includes('-deleted-')) {
+            updateData.adminInviteCode = `${org.adminInviteCode}-deleted-${Date.now()}`;
+          }
+        }
+      }
+
+      if (status === 'SUSPENDED') {
+        updateData.suspensionEnd = suspensionEnd ? new Date(suspensionEnd) : undefined;
+      } else {
+        updateData.suspensionEnd = undefined;
+      }
+
+      const organisation = await Organisation.findByIdAndUpdate(
+        req.params.id,
+        updateData,
+        { new: true }
+      );
+
+      if (!organisation) {
+        return res.status(404).json({ success: false, message: 'Organisation not found' });
+      }
+
+      await logEvent('ORG_STATUS_CHANGED', `Organisation ${organisation.name} status changed to ${status}. Reason: ${reason || 'N/A'}`, status === 'ACTIVE' ? 'SUCCESS' : 'WARNING', organisation._id, req.user.id);
+      
+      res.json({ success: true, data: organisation });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.delete("/api/admin/organisations/:id", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req: any, res) => {
+    try {
+      const organisation = await Organisation.findById(req.params.id);
+      if (!organisation) return res.status(404).json({ success: false, message: 'Organisation not found' });
+
+      // Soft delete by changing status and freeing up the code, name, and invite code
+      const oldCode = organisation.code;
+      const oldName = organisation.name;
+      const oldInviteCode = organisation.adminInviteCode;
+      organisation.status = 'DELETED';
+      organisation.code = `${oldCode}-deleted-${Date.now()}`;
+      organisation.name = `${oldName} (Deleted)`;
+      if (oldInviteCode) {
+        organisation.adminInviteCode = `${oldInviteCode}-deleted-${Date.now()}`;
+      }
+      organisation.statusReason = 'Permanently deleted by Super Admin';
+      await organisation.save();
+
+      await logEvent('ORG_DELETED', `Organisation ${organisation.name} (formerly ${oldCode}) permanently deleted`, 'ERROR', organisation._id, req.user.id);
+      
+      res.json({ success: true, message: 'Organisation permanently deleted' });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }
@@ -945,31 +1039,48 @@ async function startServer() {
       
       // 1. Validate invite code or check public registration
       let organisation;
-      if (orgCode) {
-        organisation = await Organisation.findOne({ code: orgCode });
-        if (!organisation) {
-          return res.status(400).json({ success: false, message: 'Invalid organisation invite code.' });
+      let role = 'MEMBER';
+      const globalAdminSecret = process.env.ADMIN_SECRET_CODE || 'WhanauAdmin2024';
+
+      // Check for unique admin invite code first
+      if (adminCode) {
+        const orgWithAdminCode = await Organisation.findOne({ adminInviteCode: adminCode });
+        if (orgWithAdminCode) {
+          organisation = orgWithAdminCode;
+          role = 'ORG_ADMIN';
+        } else if (adminCode === globalAdminSecret) {
+          role = 'ORG_ADMIN';
+          // If using global secret, we MUST have an orgCode to know which org to join
+          if (orgCode) {
+            organisation = await Organisation.findOne({ code: orgCode });
+          }
+        } else {
+          return res.status(400).json({ success: false, message: 'Invalid admin security code.' });
         }
-      } else if (settings.allowPublicRegistration) {
-        organisation = await Organisation.findOne({ code: 'MASTER' });
-        if (!organisation) {
-          organisation = await Organisation.create({ name: 'WhānauWell Global', code: 'MASTER' });
+      }
+
+      if (!organisation) {
+        if (orgCode) {
+          organisation = await Organisation.findOne({ code: orgCode });
+          if (!organisation) {
+            return res.status(400).json({ success: false, message: 'Invalid organisation invite code.' });
+          }
+        } else if (settings.allowPublicRegistration && role === 'MEMBER') {
+          organisation = await Organisation.findOne({ code: 'MASTER' });
+          if (!organisation) {
+            organisation = await Organisation.create({ name: 'WhānauWell Global', code: 'MASTER' });
+          }
+        } else {
+          return res.status(400).json({ success: false, message: 'Organisation code or valid admin invite is required.' });
         }
-      } else {
-        return res.status(400).json({ success: false, message: 'Invite code is required for registration.' });
       }
 
       // 2. Check if user exists
       const existingUser = await User.findOne({ email });
       if (existingUser) {
-        return res.status(400).json({ success: false, message: 'User already exists with this email.' });
-      }
-
-      // 3. Determine role
-      let role = 'MEMBER';
-      const adminSecret = process.env.ADMIN_SECRET_CODE || 'WhanauAdmin2024';
-      if (adminCode && adminCode === adminSecret) {
-        role = 'ORG_ADMIN';
+        // If user was pre-created during approval, we might want to allow them to "register" (set their password)
+        // But for now, let's keep it simple and tell them to login
+        return res.status(400).json({ success: false, message: 'User already exists with this email. Please try logging in.' });
       }
 
       // 4. Create user
@@ -1089,15 +1200,34 @@ async function startServer() {
     try {
       const isSuperAdmin = req.user.role === 'SUPER_ADMIN';
       
-      const query = isSuperAdmin ? {} : {
-        $or: [
-          { organisationId: req.tenantId },
-          { visibility: 'PUBLIC' }
-        ]
-      };
+      if (isSuperAdmin) {
+        const programmes = await Programme.find().populate('coordinatorId', 'name').populate('organisationId', 'name');
+        return res.json({ success: true, data: programmes });
+      }
 
-      const programmes = await Programme.find(query).populate('coordinatorId', 'name').populate('organisationId', 'name');
-      res.json({ success: true, data: programmes });
+      // For non-super admins:
+      // 1. Their own organisation's programmes (all)
+      // 2. Public programmes (all)
+      // 3. Other organisations' private programmes (brief only)
+      
+      const programmes = await Programme.find({}).populate('coordinatorId', 'name').populate('organisationId', 'name');
+      
+      const filteredProgrammes = programmes.map(p => {
+        const isOwnOrg = p.organisationId && (p.organisationId as any)._id.toString() === req.tenantId?.toString();
+        const isPublic = p.visibility === 'PUBLIC' || p.visibility === 'GLOBAL';
+        
+        if (isOwnOrg || isPublic) {
+          return p;
+        } else {
+          // It's a private programme from another org - return brief version
+          const brief = p.toObject();
+          delete brief.memberDetails;
+          // Add a flag to indicate it's a brief view
+          return { ...brief, isBrief: true };
+        }
+      });
+
+      res.json({ success: true, data: filteredProgrammes });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
     }
@@ -1232,6 +1362,9 @@ async function startServer() {
   // Members Routes
   app.get("/api/members", authMiddleware, tenantMiddleware, roleMiddleware(['ORG_ADMIN', 'COORDINATOR', 'MEMBER']), async (req: any, res) => {
     try {
+      if (req.isOrgRestricted) {
+        return res.status(403).json({ success: false, message: `Organisation is ${req.orgStatus}. Member list restricted.` });
+      }
       const members = await User.find({ organisationId: req.tenantId }).select('-passwordHash');
       res.json({ success: true, data: members });
     } catch (error: any) {
@@ -1242,36 +1375,40 @@ async function startServer() {
   // Dashboard Stats
   app.get("/api/dashboard/stats", authMiddleware, tenantMiddleware, async (req: any, res) => {
     try {
-      const programmesCount = await Programme.countDocuments({ 
+      if (req.isOrgRestricted && req.user.role !== 'SUPER_ADMIN') {
+        return res.status(403).json({ success: false, message: `Organisation is ${req.orgStatus}. Stats unavailable.` });
+      }
+
+      const isSuperAdmin = req.user.role === 'SUPER_ADMIN';
+      const query = isSuperAdmin ? {} : { organisationId: req.tenantId };
+      const progQuery = isSuperAdmin ? {} : { 
         $or: [
           { organisationId: req.tenantId },
           { visibility: 'PUBLIC' }
         ]
-      });
-      const membersCount = await User.countDocuments({ organisationId: req.tenantId });
-      const stressRecords = await StressRecord.find({ organisationId: req.tenantId });
+      };
+
+      const programmesCount = await Programme.countDocuments(progQuery);
+      const membersCount = await User.countDocuments(query);
+      const organisationsCount = isSuperAdmin ? await Organisation.countDocuments({ code: { $ne: 'MASTER' } }) : 0;
+      const stressRecords = await StressRecord.find(query);
       const stressStats = StressService.getAggregatedStats(stressRecords);
 
       // Recent activities
-      const recentProgrammes = await Programme.find({ 
-        $or: [
-          { organisationId: req.tenantId },
-          { visibility: 'PUBLIC' }
-        ]
-      }).sort({ createdAt: -1 }).limit(3);
-      const recentStress = await StressRecord.find({ organisationId: req.tenantId }).sort({ createdAt: -1 }).limit(3).populate('userId', 'name');
+      const recentProgrammes = await Programme.find(progQuery).sort({ createdAt: -1 }).limit(3);
+      const recentStress = await StressRecord.find(query).sort({ createdAt: -1 }).limit(3).populate('userId', 'name');
 
       // Participation trends (last 4 weeks)
       const fourWeeksAgo = new Date();
       fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
       
+      const matchQuery: any = { createdAt: { $gte: fourWeeksAgo } };
+      if (!isSuperAdmin) {
+        matchQuery.organisationId = new mongoose.Types.ObjectId(req.tenantId);
+      }
+      
       const weeklyParticipation = await StressRecord.aggregate([
-        { 
-          $match: { 
-            organisationId: new mongoose.Types.ObjectId(req.tenantId), 
-            createdAt: { $gte: fourWeeksAgo } 
-          } 
-        },
+        { $match: matchQuery },
         {
           $group: {
             _id: { $week: "$createdAt" },
@@ -1293,6 +1430,7 @@ async function startServer() {
         data: {
           programmesCount,
           membersCount,
+          organisationsCount,
           stressStats,
           participationTrend,
           recentActivities: [

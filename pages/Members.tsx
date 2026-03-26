@@ -36,6 +36,25 @@ const Members: React.FC<MembersProps> = ({ user }) => {
           'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}`
         }
       });
+      
+      if (!response.ok) {
+        let errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          // If not JSON, we'll use the status text
+        }
+        throw new Error(errorMessage);
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error('Non-JSON response body:', text.substring(0, 200));
+        throw new Error("Server returned non-JSON response. This usually means a 404 or a server crash.");
+      }
+
       const data = await response.json();
       if (data.success) {
         setMembers(data.data);
@@ -46,8 +65,9 @@ const Members: React.FC<MembersProps> = ({ user }) => {
           setError(data.message || 'Failed to fetch members');
         }
       }
-    } catch (err) {
-      setError('Connection error. Please try again.');
+    } catch (err: any) {
+      console.error('Fetch members error:', err);
+      setError(err.message || 'Connection error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -120,7 +140,7 @@ const Members: React.FC<MembersProps> = ({ user }) => {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Organisation Members</h1>
-        <p className="text-slate-500">Manage users and roles within your community hub.</p>
+        <p className="text-slate-500">Manage users and roles within your organisation.</p>
       </div>
 
       {error && (

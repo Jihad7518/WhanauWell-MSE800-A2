@@ -11,11 +11,16 @@ export interface IOrganisation extends Document {
   impactStories?: { title: string; content: string; image?: string }[];
   trackRecord?: string;
   foundedAt?: Date;
+  adminInviteCode?: string;
+  status: 'ACTIVE' | 'SUSPENDED' | 'BANNED' | 'DELETED';
+  suspensionEnd?: Date;
+  statusReason?: string;
 }
 
 const OrganisationSchema: Schema = new Schema({
   name: { type: String, required: true },
   code: { type: String, required: true, unique: true },
+  adminInviteCode: { type: String, unique: true, sparse: true },
   description: { type: String },
   mission: { type: String },
   history: { type: String },
@@ -26,7 +31,14 @@ const OrganisationSchema: Schema = new Schema({
     image: { type: String }
   }],
   trackRecord: { type: String },
-  foundedAt: { type: Date }
+  foundedAt: { type: Date },
+  status: { 
+    type: String, 
+    enum: ['ACTIVE', 'SUSPENDED', 'BANNED', 'DELETED'], 
+    default: 'ACTIVE' 
+  },
+  suspensionEnd: { type: Date },
+  statusReason: { type: String }
 }, { timestamps: true });
 
 export default mongoose.model<IOrganisation>('Organisation', OrganisationSchema);

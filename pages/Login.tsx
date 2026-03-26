@@ -55,7 +55,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     // For admin login, we don't strictly need orgCode if the email is unique globally (like Super Admin)
     // but the backend checks it if provided.
     const payload = isRegistering 
-      ? { name, email, password, orgCode: loginType === 'MEMBER' ? orgCode : (orgCode || 'MASTER'), adminCode }
+      ? { name, email, password, orgCode: loginType === 'MEMBER' ? orgCode : orgCode, adminCode }
       : { email, password, orgCode: loginType === 'MEMBER' ? orgCode : undefined };
 
     try {
@@ -80,7 +80,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         } else {
           try {
             onLogin(data.user, data.organisation, data.token);
-            navigate(redirectPath);
+            
+            // Redirect Super Admins to the Command Centre by default
+            const finalRedirect = data.user.role === 'SUPER_ADMIN' && redirectPath === '/app/dashboard' 
+              ? '/app/admin' 
+              : redirectPath;
+              
+            navigate(finalRedirect);
           } catch (callbackError) {
             console.error('Login callback error:', callbackError);
             setError('Error finalizing login. Please try again.');
@@ -202,17 +208,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           {isRegistering && loginType === 'ADMIN' && (
             <div className="pt-2">
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <label className="block text-xs font-bold text-slate-600 mb-1">Admin Security Code</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Organisation Admin Invite Code</label>
                 <input
-                  type="password"
+                  type="text"
                   required
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                  placeholder="Enter admin secret"
+                  placeholder="e.g. ADM-XXXX-XXXX"
                   value={adminCode}
                   onChange={(e) => setAdminCode(e.target.value)}
                 />
                 <p className="text-[9px] text-slate-400 mt-1">
-                  Required to register as an Organisation Admin.
+                  Enter the unique security code provided when your organisation was approved.
                 </p>
               </div>
             </div>

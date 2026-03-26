@@ -27,6 +27,9 @@ export interface Organisation {
   impactStories?: { title: string; content: string; image?: string }[];
   trackRecord?: string;
   foundedAt?: string;
+  status: 'ACTIVE' | 'SUSPENDED' | 'BANNED' | 'DELETED';
+  suspensionEnd?: string;
+  statusReason?: string;
 }
 
 export interface Programme {

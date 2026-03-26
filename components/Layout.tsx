@@ -50,7 +50,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, organisation, onLogout 
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: Object.values(UserRole), path: '/app/dashboard' },
     { id: 'admin', label: 'Platform Admin', icon: ShieldCheck, roles: [UserRole.SUPER_ADMIN], path: '/app/admin' },
     { id: 'my-programmes', label: 'My Programmes', icon: Calendar, roles: [UserRole.MEMBER, UserRole.COORDINATOR, UserRole.ORG_ADMIN], path: '/app/my-programmes' },
-    { id: 'programmes', label: 'Browse Hub', icon: Megaphone, roles: Object.values(UserRole), path: '/app/programmes' },
+    { id: 'programmes', label: 'Browse Programmes', icon: Megaphone, roles: Object.values(UserRole), path: '/app/programmes' },
     { id: 'stress', label: 'Stress Check', icon: Activity, roles: [UserRole.MEMBER, UserRole.COORDINATOR, UserRole.ORG_ADMIN], path: '/app/stress' },
     { id: 'members', label: 'Members', icon: Users, roles: [UserRole.ORG_ADMIN, UserRole.COORDINATOR], path: '/app/members' },
   ];
@@ -67,7 +67,9 @@ const Layout: React.FC<LayoutProps> = ({ children, user, organisation, onLogout 
             <ShieldCheck className="w-8 h-8 text-indigo-400" />
             <h1 className="text-xl font-bold tracking-tight">WhānauWell</h1>
           </Link>
-          <p className="text-xs text-indigo-300 mt-1 uppercase tracking-widest">{organisation.name}</p>
+          <p className="text-xs text-indigo-300 mt-1 uppercase tracking-widest">
+            {user.role === UserRole.SUPER_ADMIN ? 'Platform Administration' : organisation.name}
+          </p>
         </div>
 
         <nav className="flex-1 mt-6 px-4 space-y-1">

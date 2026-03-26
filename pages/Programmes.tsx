@@ -271,6 +271,11 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
                     </div>
                   </div>
                 )}
+                {(selectedProgramme as any).isBrief && (
+                  <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                    <p className="text-sm text-amber-800 italic">This is a private programme. Full details are only available to members of {(selectedProgramme.organisationId as any)?.name || 'the host organisation'}.</p>
+                  </div>
+                )}
               </div>
               <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
                 <div className="text-sm text-slate-500">
@@ -358,7 +363,7 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
                     <span className={`inline-block px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider ${
                       p.visibility === 'PUBLIC' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
                     }`}>
-                      {p.visibility === 'PUBLIC' ? 'Public' : 'Organisation Only'}
+                      {p.visibility === 'PUBLIC' ? 'Public' : (p as any).isBrief ? 'Private (Other Org)' : 'Organisation Only'}
                     </span>
                     {(p.organisationId as any)?._id === user.organisationId && (
                       <span className="inline-block px-3 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-full uppercase tracking-wider">
@@ -410,14 +415,14 @@ const Programmes: React.FC<ProgrammesProps> = ({ user }) => {
                 
                 <button 
                   onClick={(e) => { e.stopPropagation(); handleJoinLeave(p._id!, !p.participants.includes(user.id)); }}
-                  disabled={p.participants.includes(user.id)}
+                  disabled={p.participants.includes(user.id) || (p as any).isBrief}
                   className={`px-6 py-2 rounded-xl font-bold transition-all ${
-                    p.participants.includes(user.id) 
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-100 cursor-not-allowed' 
+                    p.participants.includes(user.id) || (p as any).isBrief
+                    ? 'bg-slate-50 text-slate-400 border border-slate-100 cursor-not-allowed' 
                     : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100'
                   }`}
                 >
-                  {p.participants.includes(user.id) ? 'Already Enrolled' : 'Join Programme'}
+                  {p.participants.includes(user.id) ? 'Already Enrolled' : (p as any).isBrief ? 'Private' : 'Join Programme'}
                 </button>
               </div>
             </div>

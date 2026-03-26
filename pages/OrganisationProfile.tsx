@@ -10,8 +10,10 @@ import {
   Plus,
   Trash2,
   Globe,
-  Calendar
+  Calendar,
+  AlertCircle
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Organisation } from '../types';
 
 interface OrganisationProfileProps {
@@ -30,12 +32,21 @@ const OrganisationProfile: React.FC<OrganisationProfileProps> = ({ user }) => {
         const res = await fetch('/api/organisation/me', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('whanauwell_token')}` }
         });
+        
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Server returned non-JSON response");
+        }
+
         const data = await res.json();
         if (data.success) {
           setOrg(data.data);
+        } else {
+          setMessage({ type: 'error', text: data.message || 'Failed to load organisation' });
         }
       } catch (err) {
         console.error('Fetch org error:', err);
+        setMessage({ type: 'error', text: 'Connection error. Please try again.' });
       } finally {
         setLoading(false);
       }
@@ -104,7 +115,14 @@ const OrganisationProfile: React.FC<OrganisationProfileProps> = ({ user }) => {
     );
   }
 
-  if (!org) return <div>Organisation not found</div>;
+  if (!org) return (
+    <div className="max-w-4xl mx-auto py-20 text-center">
+      <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
+      <h2 className="text-2xl font-bold text-slate-900 mb-2">Organisation Not Found</h2>
+      <p className="text-slate-500 mb-6">{message.text || 'We could not find the organisation associated with your account.'}</p>
+      <Link to="/app/dashboard" className="text-indigo-600 font-bold hover:underline">Return to Dashboard</Link>
+    </div>
+  );
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -114,6 +132,15 @@ const OrganisationProfile: React.FC<OrganisationProfileProps> = ({ user }) => {
           <p className="text-slate-500">Manage how your organisation is presented to the public.</p>
         </div>
       </div>
+
+      {org.status !== 'ACTIVE' && (
+        <div className={`p-4 rounded-xl flex items-center space-x-3 ${
+          org.status === 'DELETED' ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-amber-50 text-amber-700 border border-amber-100'
+        }`}>
+          <AlertCircle className="w-5 h-5" />
+          <p className="text-sm font-bold">This organisation is currently {org.status.toLowerCase()}. Access to some features may be restricted.</p>
+        </div>
+      )}
 
       {message.text && (
         <div className={`p-4 rounded-xl flex items-center ${

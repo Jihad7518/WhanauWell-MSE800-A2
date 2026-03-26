@@ -142,7 +142,7 @@ const MyProgrammes: React.FC<MyProgrammesProps> = ({ user }) => {
         <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
           <Calendar className="w-16 h-16 text-slate-200 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-slate-900">No active enrollments</h3>
-          <p className="text-slate-500 mb-8 max-w-sm mx-auto">You haven't joined any community programmes yet. Browse the hub to find activities that interest you.</p>
+          <p className="text-slate-500 mb-8 max-w-sm mx-auto">You haven't joined any community programmes yet. Browse the programmes to find activities that interest you.</p>
           <Link to="/app/programmes" className="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
             Browse Programmes
             <ArrowRight className="w-5 h-5 ml-2" />
