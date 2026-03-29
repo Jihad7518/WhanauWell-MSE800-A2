@@ -1,6 +1,7 @@
 
 import mongoose, { Schema, Document } from 'mongoose';
 
+// Define the Programme interface extending Mongoose's Document
 export interface IProgramme extends Document {
   title: string;
   description: string;

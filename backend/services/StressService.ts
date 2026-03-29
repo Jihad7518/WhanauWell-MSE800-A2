@@ -1,4 +1,6 @@
 
+import { Telemetry } from '../decorators/telemetry.decorator'; // Ensure this path is correct
+
 /**
  * StressService Class
  * Handles the business logic for calculating and classifying stress levels.
@@ -6,38 +8,43 @@
  */
 export class StressService {
   public static questions = [
-    { id: 'q1', text: 'How would you rate your sleep quality over the last week?', category: 'Sleep' },
-    { id: 'q2', text: 'How often have you felt overwhelmed by your workload?', category: 'Workload' },
-    { id: 'q3', text: 'How would you rate your general mood lately?', category: 'Mood' },
-    { id: 'q4', text: 'Have you experienced physical tension (e.g., headaches, tight shoulders)?', category: 'Physical' },
-    { id: 'q5', text: 'How easy has it been for you to focus on tasks?', category: 'Focus' },
-    { id: 'q6', text: 'How supported do you feel by your social circle?', category: 'Social' },
-    { id: 'q7', text: 'Do you feel fatigued after using digital devices/screens?', category: 'Digital' },
-    { id: 'q8', text: 'How often do you feel you have "no time for yourself"?', category: 'Personal' },
+    { id: 'q1', text: 'In the last month, how often have you been upset because of something that happened unexpectedly?', category: 'Unexpected' },
+    { id: 'q2', text: 'In the last month, how often have you felt that you were unable to control the important things in your life?', category: 'Control' },
+    { id: 'q3', text: 'In the last month, how often have you felt nervous and "stressed"?', category: 'Nervousness' },
+    { id: 'q4', text: 'In the last month, how often have you felt confident about your ability to handle your personal problems?', category: 'Confidence' },
+    { id: 'q5', text: 'In the last month, how often have you felt that things were going your way?', category: 'Success' },
+    { id: 'q6', text: 'In the last month, how often have you found that you could not cope with all the things that you had to do?', category: 'Coping' },
+    { id: 'q7', text: 'In the last month, how often have you been able to control irritations in your life?', category: 'Irritation' },
+    { id: 'q8', text: 'In the last month, how often have you felt that you were on top of things?', category: 'Control' },
+    { id: 'q9', text: 'In the last month, how often have you been angered because of things that were outside of your control?', category: 'Anger' },
+    { id: 'q10', text: 'In the last month, how often have you felt difficulties were piling up so high that you could not overcome them?', category: 'Overwhelmed' },
   ];
 
   /**
-   * Calculate stress score and classification based on user inputs
+   * Calculate stress score and classification based on user inputs (PSS-10)
+   * Scale: 0-4 (Never to Very Often)
+   * Inverted questions: q4, q5, q7, q8
    */
   public static calculateStress(responses: { questionId: string; value: number }[]) {
-    // Simple scoring: sum of values (assuming 1-5 scale)
-    // Some questions might be inverted (e.g., Sleep quality 5 is good, so we use 6-5=1 for stress)
-    const invertedQuestions = ['q1', 'q3', 'q5', 'q6'];
+    const invertedQuestions = ['q4', 'q5', 'q7', 'q8'];
     
     let totalScore = 0;
     responses.forEach(r => {
       if (invertedQuestions.includes(r.questionId)) {
-        totalScore += (6 - r.value);
+        totalScore += (4 - r.value);
       } else {
         totalScore += r.value;
       }
     });
 
-    // Max score is 8 * 5 = 40. Min is 8 * 1 = 8.
+    // PSS-10 Scoring:
+    // 0-13: Low Stress
+    // 14-26: Moderate Stress
+    // 27-40: High Perceived Stress
     let classification: 'Low' | 'Moderate' | 'High';
-    if (totalScore <= 16) {
+    if (totalScore <= 13) {
       classification = 'Low';
-    } else if (totalScore <= 28) {
+    } else if (totalScore <= 26) {
       classification = 'Moderate';
     } else {
       classification = 'High';
@@ -56,21 +63,21 @@ export class StressService {
   }
 
   private static getExplanation(classification: 'Low' | 'Moderate' | 'High', responses: { questionId: string; value: number }[]): string {
-    const highWorkload = responses.find(r => r.questionId === 'q2' && r.value >= 4);
-    const lowSleep = responses.find(r => r.questionId === 'q1' && r.value <= 2);
+    const highCoping = responses.find(r => r.questionId === 'q6' && r.value >= 3);
+    const lowConfidence = responses.find(r => r.questionId === 'q4' && r.value <= 1);
     
     let detail = "";
-    if (highWorkload && lowSleep) detail = " due to high workload and low sleep quality";
-    else if (highWorkload) detail = " primarily due to workload pressure";
-    else if (lowSleep) detail = " influenced by poor sleep quality";
+    if (highCoping && lowConfidence) detail = " due to feeling unable to cope and low confidence in handling problems";
+    else if (highCoping) detail = " primarily due to feeling overwhelmed by responsibilities";
+    else if (lowConfidence) detail = " influenced by a lack of confidence in managing personal challenges";
 
     switch (classification) {
       case 'Low':
-        return `Your current indicators suggest a healthy balance${detail}. Keep maintaining your healthy routines!`;
+        return `Your PSS-10 score suggests a healthy level of perceived stress${detail}. You seem to be managing life's challenges well.`;
       case 'Moderate':
-        return `You are reporting elevated stress markers${detail}. Consider taking a short break or engaging in a social activity.`;
+        return `You are experiencing moderate levels of stress${detail}. It might be helpful to practice some stress-reduction techniques.`;
       case 'High':
-        return `Significant stress levels detected${detail}. We strongly recommend reaching out to your programme coordinator or a health professional.`;
+        return `High levels of perceived stress detected${detail}. We strongly recommend reaching out for support from a professional or your community coordinator.`;
       default:
         return "Assessment complete.";
     }
@@ -90,6 +97,7 @@ export class StressService {
     }
   }
 
+  @Telemetry()
   public static getAggregatedStats(records: any[]) {
     const total = records.length;
     if (total === 0) return { low: 0, moderate: 0, high: 0, averageScore: 0, total: 0 };
