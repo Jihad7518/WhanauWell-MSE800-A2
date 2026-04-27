@@ -131,7 +131,7 @@ async function startServer() {
         const org = await Organisation.findOneAndUpdate(
           { code: o.code },
           { $set: o },
-          { upsert: true, new: true }
+          { upsert: true, returnDocument: 'after' }
         );
         if (org) {
           orgs[o.code] = org;
@@ -166,7 +166,7 @@ async function startServer() {
               passwordHash: hash // Reset password to ensure it works
             }
           },
-          { upsert: true, new: true }
+          { upsert: true, returnDocument: 'after' }
         );
         if (user) {
           seededUsers.push(user);
@@ -286,7 +286,7 @@ async function startServer() {
         await Programme.findOneAndUpdate(
           { title: p.title, organisationId: p.organisationId },
           { $set: p },
-          { upsert: true, new: true }
+          { upsert: true, returnDocument: 'after' }
         );
       }
       console.log(`Ensured ${programmesToSeed.length} Programmes`);
@@ -302,7 +302,7 @@ async function startServer() {
         await SupportTicket.findOneAndUpdate(
           { subject: t.subject, userId: t.userId },
           { $set: t },
-          { upsert: true, new: true }
+          { upsert: true, returnDocument: 'after' }
         );
       }
 
@@ -317,7 +317,7 @@ async function startServer() {
         await MembershipApplication.findOneAndUpdate(
           { email: a.email, organisationId: a.organisationId },
           { $set: a },
-          { upsert: true, new: true }
+          { upsert: true, returnDocument: 'after' }
         );
       }
 
@@ -521,7 +521,7 @@ async function startServer() {
       const organisation = await Organisation.findByIdAndUpdate(
         req.tenantId,
         { name, description, mission, history, logo, impactStories, trackRecord, foundedAt },
-        { new: true }
+        { returnDocument: 'after' }
       );
       if (!organisation) return res.status(404).json({ success: false, message: 'Organisation not found' });
       
@@ -740,7 +740,7 @@ async function startServer() {
       const organisation = await Organisation.findByIdAndUpdate(
         req.params.id,
         updateData,
-        { new: true }
+        { returnDocument: 'after' }
       );
 
       if (!organisation) {
@@ -871,7 +871,7 @@ async function startServer() {
   app.put("/api/admin/broadcasts/:id", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req: any, res) => {
     try {
       const { message, type, isActive } = req.body;
-      const broadcast = await Broadcast.findByIdAndUpdate(req.params.id, { message, type, isActive }, { new: true });
+      const broadcast = await Broadcast.findByIdAndUpdate(req.params.id, { message, type, isActive }, { returnDocument: 'after' });
       await logEvent('BROADCAST_UPDATED', `Broadcast updated: ${message.substring(0, 30)}...`, 'INFO', null, req.user.id);
       res.json({ success: true, data: broadcast });
     } catch (error: any) {
@@ -940,7 +940,7 @@ async function startServer() {
   app.put("/api/admin/tickets/:id", authMiddleware, roleMiddleware(['SUPER_ADMIN']), async (req: any, res) => {
     try {
       const { status, priority } = req.body;
-      const ticket = await SupportTicket.findByIdAndUpdate(req.params.id, { status, priority }, { new: true });
+      const ticket = await SupportTicket.findByIdAndUpdate(req.params.id, { status, priority }, { returnDocument: 'after' });
       await logEvent('TICKET_UPDATED', `Ticket ${req.params.id} updated to ${status}`, 'INFO', null, req.user.id);
       res.json({ success: true, data: ticket });
     } catch (error: any) {
@@ -1165,7 +1165,7 @@ async function startServer() {
       if (password) updates.passwordHash = await bcrypt.hash(password, 10);
       if (profilePicture !== undefined) updates.profilePicture = profilePicture;
 
-      const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true }).select('-passwordHash');
+      const user = await User.findByIdAndUpdate(req.user.id, updates, { returnDocument: 'after' }).select('-passwordHash');
       res.json({ success: true, data: user });
     } catch (error: any) {
       res.status(500).json({ success: false, message: error.message });
@@ -1455,7 +1455,7 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => {
+    app.get("*all", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
