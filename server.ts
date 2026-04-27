@@ -1,5 +1,6 @@
 
 import express from "express";
+import path from "path";
 import mongoose from "mongoose";
 import cors from "cors";
 import { createServer as createViteServer } from "vite";
@@ -1452,7 +1453,11 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static("dist"));
+    const distPath = path.join(process.cwd(), "dist");
+    app.use(express.static(distPath));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
+    });
   }
 
   app.listen(PORT, "0.0.0.0", () => {

@@ -1,7 +1,6 @@
 
 import mongoose, { Schema, Document } from 'mongoose';
 
-// Define the Organisation interface extending Mongoose's Document
 export interface IOrganisation extends Document {
   name: string;
   code: string;

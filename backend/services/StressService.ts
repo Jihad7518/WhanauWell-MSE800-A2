@@ -1,6 +1,4 @@
 
-import { Telemetry } from '../decorators/telemetry.decorator'; // Ensure this path is correct
-
 /**
  * StressService Class
  * Handles the business logic for calculating and classifying stress levels.
@@ -97,7 +95,6 @@ export class StressService {
     }
   }
 
-  @Telemetry()
   public static getAggregatedStats(records: any[]) {
     const total = records.length;
     if (total === 0) return { low: 0, moderate: 0, high: 0, averageScore: 0, total: 0 };

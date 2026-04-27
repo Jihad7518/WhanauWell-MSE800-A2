@@ -7,6 +7,7 @@
     "dev": "tsx server.ts",
     "build": "vite build",
     "preview": "vite preview",
+    "start": "NODE_ENV=production tsx server.ts",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
@@ -22,14 +23,14 @@
     "react-dom": "^19.2.4",
     "react-markdown": "^10.0.1",
     "react-router-dom": "^7.2.0",
-    "recharts": "^3.7.0"
+    "recharts": "^3.7.0",
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
-    "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

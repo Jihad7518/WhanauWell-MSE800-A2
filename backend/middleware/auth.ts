@@ -3,7 +3,6 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import Organisation from '../models/Organisation.ts';
 
-// Authentication Middleware
 export const authMiddleware = (req: any, res: Response, next: NextFunction) => {
   const token = req.header('Authorization')?.replace('Bearer ', '');
 
@@ -20,7 +19,6 @@ export const authMiddleware = (req: any, res: Response, next: NextFunction) => {
   }
 };
 
-// Role-Based Access Control Middleware
 export const roleMiddleware = (roles: string[]) => {
   return (req: any, res: Response, next: NextFunction) => {
     if (!roles.includes(req.user.role)) {
